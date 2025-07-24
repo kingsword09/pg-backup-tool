@@ -1,11 +1,13 @@
 # This Dockerfile builds pg_dump and pg_restore for Debian-based systems (glibc).
 # It's used by the GitHub Actions workflow for Linux builds.
 ARG POSTGRESQL_VERSION
+ARG PG_MAJOR_VERSION
 
 # Use a specific Debian version for reproducibility.
 FROM debian:bullseye
 
 ARG POSTGRESQL_VERSION
+ARG PG_MAJOR_VERSION
 
 # Prevent interactive prompts during package installation.
 ENV DEBIAN_FRONTEND=noninteractive
@@ -17,6 +19,7 @@ RUN apt-get update && \
       wget \
       zlib1g-dev \
       libssl-dev \
+      ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user to perform the build.
@@ -25,7 +28,7 @@ USER builder
 WORKDIR /home/builder
 
 # Download and extract the PostgreSQL source code.
-RUN wget "https://ftp.postgresql.org/pub/source/v${POSTGRESQL_VERSION}/postgresql-${POSTGRESQL_VERSION}.tar.gz" && \
+RUN wget "https://ftp.postgresql.org/pub/source/v${PG_MAJOR_VERSION}/postgresql-${POSTGRESQL_VERSION}.tar.gz" && \
     tar -xzf "postgresql-${POSTGRESQL_VERSION}.tar.gz"
 
 WORKDIR /home/builder/postgresql-${POSTGRESQL_VERSION}

@@ -46,14 +46,16 @@ jobs:
             # Default to a full, valid version string for CI/manual runs.
             # This is important for the Windows build, which downloads a
             # pre-compiled binary using a specific version in the URL.
-            version="16.3.0"
+            version="17.5.0"
           fi
 
           root_directory="$(pwd)"
           archive="pg-tools-v$version-${{ inputs.id }}"
           install_directory="$root_directory/$archive"
+          major_version=$(echo "$version" | awk -F. '{print $1"."$2}')
 
           echo "PG_VERSION=$version" | tee -a $GITHUB_ENV
+          echo "PG_MAJOR_VERSION=$major_version" | tee -a $GITHUB_ENV
           echo "ARCHIVE_NAME=$archive" | tee -a $GITHUB_ENV
           echo "INSTALL_DIR=$install_directory" | tee -a $GITHUB_ENV
           echo "ROOT_DIR=$root_directory" | tee -a $GITHUB_ENV
@@ -76,6 +78,7 @@ jobs:
         run: |
           docker buildx build \
             --build-arg "POSTGRESQL_VERSION=${PG_VERSION}" \
+            --build-arg "PG_MAJOR_VERSION=${PG_MAJOR_VERSION}" \
             --platform "${{ inputs.platform }}" \
             --tag pg-tools-build:latest \
             -f "${{ env.DOCKERFILE }}" .
@@ -95,7 +98,7 @@ jobs:
       - name: Download and Extract Source (macOS)
         if: runner.os == 'macOS'
         run: |
-          wget "https://ftp.postgresql.org/pub/source/v${PG_VERSION}/postgresql-${PG_VERSION}.tar.gz"
+          wget "https://ftp.postgresql.org/pub/source/v${PG_MAJOR_VERSION}/postgresql-${PG_VERSION}.tar.gz"
           tar -xzf "postgresql-${PG_VERSION}.tar.gz"
 
       - name: Build from Source (macOS)
@@ -117,7 +120,9 @@ jobs:
       - name: Download and Extract Binaries (Windows)
         if: runner.os == 'Windows'
         run: |
-          curl -o postgresql.zip https://get.enterprisedb.com/postgresql/postgresql-${PG_VERSION}-1-windows-x64-binaries.zip
+          # EnterpriseDB download URLs use the major version (e.g., 16.3), not the full patch version.
+          # Use -L to follow redirects, -f to fail on server errors, and -s for silent mode.
+          curl -Lfs -o postgresql.zip "https://get.enterprisedb.com/postgresql/postgresql-${PG_MAJOR_VERSION}-1-windows-x64-binaries.zip"
           unzip -q postgresql.zip
           mkdir -p "${INSTALL_DIR}"
           mv pgsql/bin "${INSTALL_DIR}/"

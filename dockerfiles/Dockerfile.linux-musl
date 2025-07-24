@@ -1,11 +1,13 @@
 # This Dockerfile builds pg_dump and pg_restore for Alpine-based systems (musl).
 # It's used by the GitHub Actions workflow for static Linux builds.
 ARG POSTGRESQL_VERSION
+ARG PG_MAJOR_VERSION
 
 # Use a specific Alpine version for reproducibility.
 FROM alpine:3.18
 
 ARG POSTGRESQL_VERSION
+ARG PG_MAJOR_VERSION
 
 # Install build dependencies.
 RUN apk add --no-cache \
@@ -14,7 +16,8 @@ RUN apk add --no-cache \
     linux-headers \
     wget \
     zlib-dev \
-    openssl-dev
+    openssl-dev \
+    ca-certificates
 
 # Create a non-root user to perform the build.
 RUN adduser -D -s /bin/sh builder
@@ -22,7 +25,7 @@ USER builder
 WORKDIR /home/builder
 
 # Download and extract the PostgreSQL source code.
-RUN wget "https://ftp.postgresql.org/pub/source/v${POSTGRESQL_VERSION}/postgresql-${POSTGRESQL_VERSION}.tar.gz" && \
+RUN wget "https://ftp.postgresql.org/pub/source/v${PG_MAJOR_VERSION}/postgresql-${POSTGRESQL_VERSION}.tar.gz" && \
     tar -xzf "postgresql-${POSTGRESQL_VERSION}.tar.gz"
 
 WORKDIR /home/builder/postgresql-${POSTGRESQL_VERSION}
