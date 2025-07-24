@@ -34,11 +34,16 @@ RUN useradd -ms /bin/bash builder
 USER builder
 WORKDIR /home/builder
 
-# Clone PostgreSQL source code using git (more reliable for multi-arch)
+# Clone PostgreSQL source code using git with retry mechanism
 RUN branch=$(echo "$POSTGRESQL_VERSION" | awk -F. '{print "REL_"$1"_"$2}') && \
     echo "Cloning PostgreSQL branch: $branch" && \
-    git clone --depth 1 --branch $branch -c advice.detachedHead=false \
-    https://git.postgresql.org/git/postgresql.git postgresql-src
+    git config --global http.version HTTP/1.1 && \
+    git config --global http.sslVerify false && \
+    for i in $(seq 1 5); do \
+        git clone --depth 1 --branch $branch -c advice.detachedHead=false \
+        https://git.postgresql.org/git/postgresql.git postgresql-src \
+        && break || sleep 3; \
+    done
 
 WORKDIR /home/builder/postgresql-src
 
