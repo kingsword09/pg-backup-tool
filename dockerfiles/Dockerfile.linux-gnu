@@ -41,22 +41,25 @@ WORKDIR /home/builder/postgresql-${POSTGRESQL_VERSION}
 # 'the directory where the executable is located'. This makes the binaries portable.
 RUN LDFLAGS="-Wl,-rpath,'\$\$ORIGIN/../lib'" ./configure \
     --prefix=/opt/postgresql \
+    --enable-integer-datetimes \
+    --enable-option-checking=fatal \
     --without-readline \
     --with-openssl \
     --with-zlib \
-    --without-icu
+    --without-icu \
+    --without-ldap \
+    --with-pgport=5432
 
-# Build only the required binaries and libraries.
+# Build only the required components.
 RUN make -C src/common all && \
     make -C src/include all && \
     make -C src/interfaces/libpq all && \
-    make -C src/bin/pg_dump all && \
-    make -C src/bin/pg_restore all
+    make -C src/bin/pg_dump all
 
-# Stage the final artifacts into the /opt/postgresql directory, which will be
-# copied out of the container by the GitHub Actions workflow.
-RUN mkdir -p /opt/postgresql/bin && \
-    mkdir -p /opt/postgresql/lib && \
-    cp src/bin/pg_dump/pg_dump /opt/postgresql/bin/ && \
-    cp src/bin/pg_restore/pg_restore /opt/postgresql/bin/ && \
-    cp src/interfaces/libpq/libpq.so.* /opt/postgresql/lib/
+# Install to the staging directory.
+RUN make -C src/interfaces/libpq install && \
+    make -C src/bin/pg_dump install
+
+# Ensure proper library setup.
+RUN mkdir -p /opt/postgresql/lib && \
+    find /opt/postgresql -name "*.so*" -exec cp {} /opt/postgresql/lib/ \; 2>/dev/null || true

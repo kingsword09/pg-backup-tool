@@ -57,7 +57,7 @@ jobs:
           # The unpacked directory will be postgresql-16.3.
           #
           download_version=$(echo "$full_version" | awk -F. '{print $1"."$2}')
-          
+
           # The final release asset should use the full, unique tag version for its name.
           archive_name="pg-tools-v$full_version-${{ inputs.id }}"
 
@@ -70,10 +70,16 @@ jobs:
           echo "PG_MAJOR_VERSION=$download_version" | tee -a $GITHUB_ENV
           # PG_FULL_VERSION is used for verification in the test script (e.g., 16.3.2)
           echo "PG_FULL_VERSION=$full_version" | tee -a $GITHUB_ENV
-          
+
           echo "ARCHIVE_NAME=$archive_name" | tee -a $GITHUB_ENV
           echo "INSTALL_DIR=$install_directory" | tee -a $GITHUB_ENV
           echo "ROOT_DIR=$root_directory" | tee -a $GITHUB_ENV
+
+          # Debug output
+          echo "Building PostgreSQL version: $full_version"
+          echo "Download version: $download_version"
+          echo "Target: ${{ inputs.target }}"
+          echo "Platform: ${{ inputs.platform }}"
 
       # =================================================================
       # Linux Build (using Docker)
@@ -97,7 +103,7 @@ jobs:
             --platform "${{ inputs.platform }}" \
             --tag pg-tools-build:latest \
             -f "${{ env.DOCKERFILE }}" .
-          
+
           container_id=$(docker create --platform "${{ inputs.platform }}" pg-tools-build:latest)
           docker cp "${container_id}:/opt/postgresql" "${INSTALL_DIR}"
           docker rm -v "${container_id}"
@@ -108,46 +114,81 @@ jobs:
       - name: Install Dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install openssl zlib
+          brew install \
+            gettext \
+            icu4c \
+            lz4 \
+            openssl \
+            readline \
+            xz \
+            zstd
 
-      - name: Download and Extract Source (macOS)
+      - name: Checkout PostgreSQL Source (macOS)
         if: runner.os == 'macOS'
         run: |
-          # URL uses major version for the path and full version for the filename.
-          wget "https://ftp.postgresql.org/pub/source/v${PG_MAJOR_VERSION}/postgresql-${PG_VERSION}.tar.gz"
-          tar -xzf "postgresql-${PG_VERSION}.tar.gz"
+          # Use git clone for more reliable source retrieval
+          source_directory="${ROOT_DIR}/postgresql-src"
+          branch=$(echo "$PG_VERSION" | awk -F. '{print "REL_"$1"_"$2}')
+          git clone --depth 1 --branch $branch -c advice.detachedHead=false \
+            https://git.postgresql.org/git/postgresql.git "$source_directory"
+          echo "SOURCE_DIRECTORY=$source_directory" >> $GITHUB_ENV
+
+      - name: Configure Build (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # Detect Homebrew installation path
+          if [[ "$(uname -m)" == "arm64" ]]; then
+            brew_opt_dir="/opt/homebrew/opt"
+          else
+            brew_opt_dir="/usr/local/opt"
+          fi
+
+          echo "CPPFLAGS=-I${brew_opt_dir}/icu4c/include -I${brew_opt_dir}/openssl/include" >> $GITHUB_ENV
+          echo "LDFLAGS=-L${brew_opt_dir}/icu4c/lib -L${brew_opt_dir}/openssl/lib" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=${brew_opt_dir}/openssl/lib/pkgconfig:${brew_opt_dir}/icu4c/lib/pkgconfig" >> $GITHUB_ENV
 
       - name: Build from Source (macOS)
         if: runner.os == 'macOS'
-        working-directory: postgresql-${{ env.PG_VERSION }}
-        env:
-          # The most reliable method to help `configure` find Homebrew libraries
-          # is to set the PKG_CONFIG_PATH. LDFLAGS and CPPFLAGS are included as a fallback.
-          PKG_CONFIG_PATH: "$(brew --prefix openssl)/lib/pkgconfig"
-          LDFLAGS: "-L$(brew --prefix openssl)/lib"
-          CPPFLAGS: "-I$(brew --prefix openssl)/include"
+        working-directory: ${{ env.SOURCE_DIRECTORY }}
         run: |
-          # The LDFLAGS and CPPFLAGS env vars will be used automatically by ./configure.
+          # Determine major version for conditional features
+          major_version=$(echo "$PG_VERSION" | awk -F. '{print $1}')
+
+          # Configure with comprehensive options similar to reference
           ./configure \
-            --prefix=${INSTALL_DIR} \
-            --without-readline \
+            --prefix="${INSTALL_DIR}" \
+            --enable-integer-datetimes \
+            --enable-option-checking=fatal \
+            $([ $major_version -le 16 ] && echo "--enable-thread-safety") \
+            $([ $major_version -ge 14 ] && echo "--with-icu" || echo "--without-icu") \
+            --without-ldap \
+            --with-libxml \
+            --with-libxslt \
+            $([ $major_version -ge 16 ] && echo "--with-llvm" || true) \
+            $([ $major_version -ge 14 ] && echo "--with-lz4" || true) \
             --with-openssl \
-            --with-zlib \
-            --without-icu
+            --with-pgport=5432 \
+            --with-readline \
+            --with-system-tzdata=/usr/share/zoneinfo \
+            --with-uuid=e2fs \
+            $([ $major_version -ge 16 ] && echo "--with-zstd" || true)
+
+          # Build only what we need for pg_dump/pg_restore
+          make -C src/common all
+          make -C src/include all
           make -C src/interfaces/libpq all install
           make -C src/bin/pg_dump all install
-          make -C src/bin/pg_restore all install
 
       - name: Update library paths (macOS)
         if: runner.os == 'macOS'
         run: |
-          # This step makes the compiled binaries portable by changing the hardcoded
-          # absolute path to libpq.5.dylib to a relative path.
-          echo "Fixing library paths in pg_dump and pg_restore..."
-          for bin in pg_dump pg_restore; do
-            install_name_tool -change "${INSTALL_DIR}/lib/libpq.5.dylib" \
-              "@executable_path/../lib/libpq.5.dylib" \
-              "${INSTALL_DIR}/bin/$bin"
+          # Make binaries portable by updating library paths
+          echo "Fixing library paths for portability..."
+          find "${INSTALL_DIR}/bin" -type f -name "pg_*" | while read -r binary; do
+            if [[ -f "$binary" ]]; then
+              install_name_tool -change "${INSTALL_DIR}/lib/libpq.5.dylib" \
+                "@executable_path/../lib/libpq.5.dylib" "$binary" 2>/dev/null || true
+            fi
           done
 
       # =================================================================
