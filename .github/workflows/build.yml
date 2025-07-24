@@ -37,26 +37,41 @@ jobs:
 
       - name: Setup Environment Variables
         run: |
-          # Extract version from tag (e.g., v16.3.0 -> 16.3.0)
-          # Use a default for non-tag refs.
+          #
+          # Set PostgreSQL Version
+          #
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            version_tag="${{ github.ref_name }}"
-            version="${version_tag#v}"
+            # e.g., "v16.3.2" -> "16.3.2"
+            raw_tag="${{ github.ref_name }}"
+            full_version="${raw_tag#v}"
           else
-            # Default to a full, valid version string for CI/manual runs.
-            # This is important for the Windows build, which downloads a
-            # pre-compiled binary using a specific version in the URL.
-            version="17.5.0"
+            # Default version for CI/manual runs. This must be a valid, released version.
+            full_version="17.5"
           fi
 
-          root_directory="$(pwd)"
-          archive="pg-tools-v$version-${{ inputs.id }}"
-          install_directory="$root_directory/$archive"
-          major_version=$(echo "$version" | awk -F. '{print $1"."$2}')
+          #
+          # Determine Download and Archive Versions
+          #
+          # The PostgreSQL source tarball's name and its URL path *always* use the major.minor version.
+          # e.g., for tag v16.3.2, the URL is .../v16.3/postgresql-16.3.tar.gz
+          # The unpacked directory will be postgresql-16.3.
+          #
+          download_version=$(echo "$full_version" | awk -F. '{print $1"."$2}')
+          
+          # The final release asset should use the full, unique tag version for its name.
+          archive_name="pg-tools-v$full_version-${{ inputs.id }}"
 
-          echo "PG_VERSION=$version" | tee -a $GITHUB_ENV
-          echo "PG_MAJOR_VERSION=$major_version" | tee -a $GITHUB_ENV
-          echo "ARCHIVE_NAME=$archive" | tee -a $GITHUB_ENV
+          root_directory="$(pwd)"
+          install_directory="$root_directory/$archive_name"
+
+          # PG_VERSION is used for the tarball filename and the name of the unpacked source directory (e.g., 16.3)
+          echo "PG_VERSION=$download_version" | tee -a $GITHUB_ENV
+          # PG_MAJOR_VERSION is for the URL path, which is the same as PG_VERSION in this corrected logic (e.g., 16.3)
+          echo "PG_MAJOR_VERSION=$download_version" | tee -a $GITHUB_ENV
+          # PG_FULL_VERSION is used for verification in the test script (e.g., 16.3.2)
+          echo "PG_FULL_VERSION=$full_version" | tee -a $GITHUB_ENV
+          
+          echo "ARCHIVE_NAME=$archive_name" | tee -a $GITHUB_ENV
           echo "INSTALL_DIR=$install_directory" | tee -a $GITHUB_ENV
           echo "ROOT_DIR=$root_directory" | tee -a $GITHUB_ENV
 
@@ -98,6 +113,7 @@ jobs:
       - name: Download and Extract Source (macOS)
         if: runner.os == 'macOS'
         run: |
+          # URL uses major version for the path and full version for the filename.
           wget "https://ftp.postgresql.org/pub/source/v${PG_MAJOR_VERSION}/postgresql-${PG_VERSION}.tar.gz"
           tar -xzf "postgresql-${PG_VERSION}.tar.gz"
 
@@ -120,8 +136,8 @@ jobs:
       - name: Download and Extract Binaries (Windows)
         if: runner.os == 'Windows'
         run: |
-          # EnterpriseDB download URLs use the major version (e.g., 16.3), not the full patch version.
-          # Use -L to follow redirects, -f to fail on server errors, and -s for silent mode.
+          # EnterpriseDB download URLs use the major.minor version string.
+          # Use curl's flags to follow redirects (-L), fail on server errors (-f), and run silently (-s).
           curl -Lfs -o postgresql.zip "https://get.enterprisedb.com/postgresql/postgresql-${PG_MAJOR_VERSION}-1-windows-x64-binaries.zip"
           unzip -q postgresql.zip
           mkdir -p "${INSTALL_DIR}"
@@ -149,7 +165,8 @@ jobs:
         run: |
           cp "${ROOT_DIR}/scripts/test.sh" .
           chmod +x test.sh
-          ./test.sh "${PG_VERSION}"
+          # Test against the full version string, which is what `pg_dump --version` will output.
+          ./test.sh "${PG_FULL_VERSION}"
 
       # Upload the final archive as an artifact for both CI and Release runs.
       - name: Upload Build Artifact
