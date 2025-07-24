@@ -3,9 +3,9 @@
 ARG POSTGRESQL_VERSION
 ARG PG_MAJOR_VERSION
 
-# Use a specific Debian version for reproducibility.
-# This supports multiple architectures: amd64, arm64, arm/v7, ppc64le, s390x, riscv64
-FROM debian:bullseye
+# Use Debian 12.4 for better multi-architecture support
+# Supports: amd64, arm64, arm/v7, ppc64le, s390x, riscv64
+FROM debian:12.4
 
 ARG POSTGRESQL_VERSION
 ARG PG_MAJOR_VERSION

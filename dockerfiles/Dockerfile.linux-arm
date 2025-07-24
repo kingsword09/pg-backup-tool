@@ -3,8 +3,8 @@
 ARG POSTGRESQL_VERSION
 ARG PG_MAJOR_VERSION
 
-# Use a specific Debian version that has good ARM support
-FROM debian:bullseye
+# Use Debian 12.4 for better ARM architecture support
+FROM debian:12.4
 
 ARG POSTGRESQL_VERSION
 ARG PG_MAJOR_VERSION
@@ -25,7 +25,6 @@ RUN apt-get update && \
       perl \
       file \
       binutils \
-      gcc-multilib \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user to perform the build.

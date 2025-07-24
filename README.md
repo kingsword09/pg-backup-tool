@@ -32,6 +32,10 @@ Get the latest binaries from the [Releases](../../releases) page. Each release i
 - All required libraries bundled
 - Ready to run without PostgreSQL installation
 
+### Platform Availability Notes
+
+- **All platforms**: Consistently available for all supported PostgreSQL versions using Debian 12.4 base images with multi-architecture support.
+
 ## 🔧 Usage
 
 1. Download the appropriate archive for your platform
