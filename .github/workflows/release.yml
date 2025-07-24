@@ -1,0 +1,97 @@
+# .github/workflows/release.yml
+name: Release
+
+# This workflow creates a full, multi-platform release.
+#
+# It follows a safe, three-stage process:
+# 1. create-release: A draft GitHub Release is created. This acts as a staging
+#    area for the compiled binaries.
+# 2. build: The reusable build workflow is called for all target platforms.
+#    Each successful build job attaches its binary to the draft release.
+# 3. publish-release: After all builds are successful, this job marks the
+#    draft release as "published", making it publicly visible.
+
+on:
+  push:
+    tags:
+      # Trigger on tags like "v1.2.3".
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  # Job 1: Create a draft release to act as a container for the build artifacts.
+  create-release:
+    name: Create Draft Release
+    runs-on: ubuntu-latest
+    permissions:
+      # Required to create a release.
+      contents: write
+    steps:
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Get the tag name from the Git ref (e.g., refs/tags/v1.2.3 -> v1.2.3).
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG_NAME" \
+            --draft \
+            --title "$TAG_NAME" \
+            --verify-tag
+
+  # Job 2: Build all platforms and upload artifacts to the draft release.
+  build:
+    name: Build ${{ matrix.id }}
+    needs: [create-release]
+    uses: ./.github/workflows/build.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        # Full Release Matrix: All platforms to be built for a release.
+        include:
+          - id: linux-x64
+            target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux/amd64
+          - id: linux-arm64
+            target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux/arm64/v8
+          - id: linux-x64-musl
+            target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            platform: linux/amd64
+          - id: linux-arm64-musl
+            target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            platform: linux/arm64/v8
+          - id: macos-arm64
+            target: aarch64-apple-darwin
+            os: macos-14
+          - id: macos-x64
+            target: x86_64-apple-darwin
+            os: macos-13
+          - id: windows-x64
+            target: x86_64-pc-windows-msvc
+            os: windows-latest
+    with:
+      id: ${{ matrix.id }}
+      target: ${{ matrix.target }}
+      os: ${{ matrix.os }}
+      platform: ${{ matrix.platform }}
+      release: true
+    permissions:
+      contents: write # Required by the release upload action in build.yml
+
+  # Job 3: Publish the release after all builds have succeeded.
+  publish-release:
+    name: Publish Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          gh release edit "$TAG_NAME" --draft=false

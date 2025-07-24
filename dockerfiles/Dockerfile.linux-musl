@@ -1,0 +1,49 @@
+# This Dockerfile builds pg_dump and pg_restore for Alpine-based systems (musl).
+# It's used by the GitHub Actions workflow for static Linux builds.
+ARG POSTGRESQL_VERSION
+
+# Use a specific Alpine version for reproducibility.
+FROM alpine:3.18
+
+ARG POSTGRESQL_VERSION
+
+# Install build dependencies.
+RUN apk add --no-cache \
+    build-base \
+    gcc \
+    linux-headers \
+    wget \
+    zlib-dev \
+    openssl-dev
+
+# Create a non-root user to perform the build.
+RUN adduser -D -s /bin/sh builder
+USER builder
+WORKDIR /home/builder
+
+# Download and extract the PostgreSQL source code.
+RUN wget "https://ftp.postgresql.org/pub/source/v${POSTGRESQL_VERSION}/postgresql-${POSTGRESQL_VERSION}.tar.gz" && \
+    tar -xzf "postgresql-${POSTGRESQL_VERSION}.tar.gz"
+
+WORKDIR /home/builder/postgresql-${POSTGRESQL_VERSION}
+
+# Configure the build for a static environment.
+RUN ./configure \
+    --prefix=/opt/postgresql \
+    --without-readline \
+    --with-openssl \
+    --with-zlib
+
+# Build only the required binaries and libraries.
+RUN make -C src/common all && \
+    make -C src/include all && \
+    make -C src/interfaces/libpq all && \
+    make -C src/bin/pg_dump all && \
+    make -C src/bin/pg_restore all
+
+# Stage the final artifacts.
+RUN mkdir -p /opt/postgresql/bin && \
+    mkdir -p /opt/postgresql/lib && \
+    cp src/bin/pg_dump/pg_dump /opt/postgresql/bin/ && \
+    cp src/bin/pg_restore/pg_restore /opt/postgresql/bin/ && \
+    cp src/interfaces/libpq/libpq.a /opt/postgresql/lib/

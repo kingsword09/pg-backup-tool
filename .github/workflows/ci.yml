@@ -1,0 +1,42 @@
+# .github/workflows/ci.yml
+name: Continuous Integration
+
+# This workflow runs on pushes to the main branch and on pull requests.
+# Its goal is to verify that the build process is still functional after changes.
+# It calls the reusable 'build.yml' workflow to perform the actual build and test.
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  # This job will call the reusable build workflow for each of the primary
+  # test platforms to ensure they build correctly.
+  test-builds:
+    name: Test Build ${{ matrix.id }}
+    uses: ./.github/workflows/build.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: linux-x64
+            target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux/amd64
+          - id: macos-arm64
+            target: aarch64-apple-darwin
+            os: macos-14
+          - id: windows-x64
+            target: x86_64-pc-windows-msvc
+            os: windows-latest
+    with:
+      # Pass the matrix variables to the reusable workflow.
+      id: ${{ matrix.id }}
+      target: ${{ matrix.target }}
+      os: ${{ matrix.os }}
+      platform: ${{ matrix.platform }}
+      # This is a CI run, not a release, so set 'release' to false.
+      release: false

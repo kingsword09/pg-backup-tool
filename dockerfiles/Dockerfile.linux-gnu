@@ -1,0 +1,53 @@
+# This Dockerfile builds pg_dump and pg_restore for Debian-based systems (glibc).
+# It's used by the GitHub Actions workflow for Linux builds.
+ARG POSTGRESQL_VERSION
+
+# Use a specific Debian version for reproducibility.
+FROM debian:bullseye
+
+ARG POSTGRESQL_VERSION
+
+# Prevent interactive prompts during package installation.
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      build-essential \
+      wget \
+      zlib1g-dev \
+      libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user to perform the build.
+RUN useradd -ms /bin/bash builder
+USER builder
+WORKDIR /home/builder
+
+# Download and extract the PostgreSQL source code.
+RUN wget "https://ftp.postgresql.org/pub/source/v${POSTGRESQL_VERSION}/postgresql-${POSTGRESQL_VERSION}.tar.gz" && \
+    tar -xzf "postgresql-${POSTGRESQL_VERSION}.tar.gz"
+
+WORKDIR /home/builder/postgresql-${POSTGRESQL_VERSION}
+
+# Configure the build. We only need a few components, not the full server.
+RUN ./configure \
+    --prefix=/opt/postgresql \
+    --without-readline \
+    --with-openssl \
+    --with-zlib
+
+# Build only the required binaries and libraries.
+RUN make -C src/common all && \
+    make -C src/include all && \
+    make -C src/interfaces/libpq all && \
+    make -C src/bin/pg_dump all && \
+    make -C src/bin/pg_restore all
+
+# Stage the final artifacts into the /opt/postgresql directory, which will be
+# copied out of the container by the GitHub Actions workflow.
+RUN mkdir -p /opt/postgresql/bin && \
+    mkdir -p /opt/postgresql/lib && \
+    cp src/bin/pg_dump/pg_dump /opt/postgresql/bin/ && \
+    cp src/bin/pg_restore/pg_restore /opt/postgresql/bin/ && \
+    cp src/interfaces/libpq/libpq.so.* /opt/postgresql/lib/
