@@ -56,10 +56,14 @@ RUN make -C src/common all && \
     make -C src/interfaces/libpq all && \
     make -C src/bin/pg_dump all
 
+# Create the install directory with proper permissions first
+USER root
+RUN mkdir -p /opt/postgresql && chown -R builder:builder /opt/postgresql
+USER builder
+
 # Install to the staging directory.
 RUN make -C src/interfaces/libpq install && \
     make -C src/bin/pg_dump install
 
 # Ensure proper library setup.
-RUN mkdir -p /opt/postgresql/lib && \
-    find /opt/postgresql -name "*.so*" -exec cp {} /opt/postgresql/lib/ \; 2>/dev/null || true
+RUN find /opt/postgresql -name "*.so*" -exec cp {} /opt/postgresql/lib/ \; 2>/dev/null || true

@@ -118,6 +118,7 @@ jobs:
             gettext \
             icu4c \
             lz4 \
+            llvm \
             openssl \
             readline \
             xz \
@@ -146,6 +147,7 @@ jobs:
           echo "CPPFLAGS=-I${brew_opt_dir}/icu4c/include -I${brew_opt_dir}/openssl/include" >> $GITHUB_ENV
           echo "LDFLAGS=-L${brew_opt_dir}/icu4c/lib -L${brew_opt_dir}/openssl/lib" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=${brew_opt_dir}/openssl/lib/pkgconfig:${brew_opt_dir}/icu4c/lib/pkgconfig" >> $GITHUB_ENV
+          echo "LLVM_CONFIG=${brew_opt_dir}/llvm/bin/llvm-config" >> $GITHUB_ENV
 
       - name: Build from Source (macOS)
         if: runner.os == 'macOS'
@@ -154,24 +156,32 @@ jobs:
           # Determine major version for conditional features
           major_version=$(echo "$PG_VERSION" | awk -F. '{print $1}')
 
-          # Configure with comprehensive options similar to reference
-          ./configure \
-            --prefix="${INSTALL_DIR}" \
-            --enable-integer-datetimes \
-            --enable-option-checking=fatal \
-            $([ $major_version -le 16 ] && echo "--enable-thread-safety") \
-            $([ $major_version -ge 14 ] && echo "--with-icu" || echo "--without-icu") \
-            --without-ldap \
-            --with-libxml \
-            --with-libxslt \
-            $([ $major_version -ge 16 ] && echo "--with-llvm" || true) \
-            $([ $major_version -ge 14 ] && echo "--with-lz4" || true) \
-            --with-openssl \
-            --with-pgport=5432 \
-            --with-readline \
-            --with-system-tzdata=/usr/share/zoneinfo \
-            --with-uuid=e2fs \
-            $([ $major_version -ge 16 ] && echo "--with-zstd" || true)
+          # Configure with options optimized for pg_dump/pg_restore
+          configure_args=(
+            --prefix="${INSTALL_DIR}"
+            --enable-integer-datetimes
+            --with-openssl
+            --with-zlib
+            --with-readline
+            --with-pgport=5432
+          )
+
+          # Add version-specific features if available
+          if [ $major_version -le 16 ]; then
+            configure_args+=(--enable-thread-safety)
+          fi
+
+          if [ $major_version -ge 14 ]; then
+            configure_args+=(--with-icu --with-lz4)
+          else
+            configure_args+=(--without-icu)
+          fi
+
+          if [ $major_version -ge 16 ]; then
+            configure_args+=(--with-llvm --with-zstd)
+          fi
+
+          ./configure "${configure_args[@]}"
 
           # Build only what we need for pg_dump/pg_restore
           make -C src/common all
