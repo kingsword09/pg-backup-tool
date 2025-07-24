@@ -65,5 +65,17 @@ USER builder
 RUN make -C src/interfaces/libpq install && \
     make -C src/bin/pg_dump install
 
-# Ensure proper library setup.
-RUN find /opt/postgresql -name "*.so*" -exec cp {} /opt/postgresql/lib/ \; 2>/dev/null || true
+# Copy required shared libraries using ldd to find dependencies
+USER root
+RUN mkdir -p /opt/postgresql/lib && \
+    for binary in /opt/postgresql/bin/pg_dump /opt/postgresql/bin/pg_restore; do \
+      if [ -f "$binary" ]; then \
+        ldd "$binary" | grep -E "(libssl|libcrypto|libz)" | awk '{print $3}' | while read lib; do \
+          if [ -f "$lib" ] && [ ! -f "/opt/postgresql/lib/$(basename "$lib")" ]; then \
+            cp "$lib" /opt/postgresql/lib/ 2>/dev/null || true; \
+          fi; \
+        done; \
+      fi; \
+    done
+
+USER builder
