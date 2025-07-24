@@ -18,7 +18,8 @@ RUN apk add --no-cache \
     zlib-dev \
     openssl-dev \
     ca-certificates \
-    bison
+    bison \
+    flex
 
 # Create a non-root user to perform the build.
 RUN adduser -D -s /bin/sh builder

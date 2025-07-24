@@ -21,6 +21,7 @@ RUN apt-get update && \
       libssl-dev \
       ca-certificates \
       bison \
+      flex \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user to perform the build.
@@ -35,7 +36,10 @@ RUN wget "https://ftp.postgresql.org/pub/source/v${PG_MAJOR_VERSION}/postgresql-
 WORKDIR /home/builder/postgresql-${POSTGRESQL_VERSION}
 
 # Configure the build. We only need a few components, not the full server.
-RUN ./configure \
+# The LDFLAGS sets the 'rpath', which bakes a relative library search path
+# into the executables. '$$ORIGIN' is a special linker variable that means
+# 'the directory where the executable is located'. This makes the binaries portable.
+RUN LDFLAGS="-Wl,-rpath,'\$\$ORIGIN/../lib'" ./configure \
     --prefix=/opt/postgresql \
     --without-readline \
     --with-openssl \

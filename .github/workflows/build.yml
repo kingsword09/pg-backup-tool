@@ -121,7 +121,9 @@ jobs:
         if: runner.os == 'macOS'
         working-directory: postgresql-${{ env.PG_VERSION }}
         env:
-          # Set flags to help configure find the Homebrew-installed OpenSSL.
+          # The most reliable method to help `configure` find Homebrew libraries
+          # is to set the PKG_CONFIG_PATH. LDFLAGS and CPPFLAGS are included as a fallback.
+          PKG_CONFIG_PATH: "$(brew --prefix openssl)/lib/pkgconfig"
           LDFLAGS: "-L$(brew --prefix openssl)/lib"
           CPPFLAGS: "-I$(brew --prefix openssl)/include"
         run: |
@@ -135,6 +137,18 @@ jobs:
           make -C src/interfaces/libpq all install
           make -C src/bin/pg_dump all install
           make -C src/bin/pg_restore all install
+
+      - name: Update library paths (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # This step makes the compiled binaries portable by changing the hardcoded
+          # absolute path to libpq.5.dylib to a relative path.
+          echo "Fixing library paths in pg_dump and pg_restore..."
+          for bin in pg_dump pg_restore; do
+            install_name_tool -change "${INSTALL_DIR}/lib/libpq.5.dylib" \
+              "@executable_path/../lib/libpq.5.dylib" \
+              "${INSTALL_DIR}/bin/$bin"
+          done
 
       # =================================================================
       # Windows Build (using pre-compiled binaries)
