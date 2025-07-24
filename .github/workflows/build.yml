@@ -1,0 +1,227 @@
+# .github/workflows/build.yml
+name: Build and Release PG Tools
+
+# 触发条件:
+# 1. 手动触发 (workflow_dispatch): 用于在任意分支上进行测试构建。
+# 2. 推送 v*.*.* 格式的 tag: 用于创建正式的全平台版本。
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+jobs:
+  build_and_release:
+    # 动态命名job，方便在UI中识别，例如 "Build for linux-arm64-musl"
+    name: Build for ${{ matrix.id }}
+    # 所有Linux目标都可以在ubuntu-latest上通过交叉编译完成
+    # macOS 和 Windows 需要特定的 runner
+    runs-on: ${{ matrix.os_runner }}
+
+    strategy:
+      fail-fast: false # 如果一个job失败，其他job继续运行
+      matrix:
+        # =================================================================
+        # Test Matrix: 用于快速测试核心平台 (Linux, macOS, Windows).
+        # 您可以通过 "Actions" -> "Build and Release PG Tools" -> "Run workflow" 手动触发.
+        # =================================================================
+        include:
+          - id: linux-x64
+            os_runner: ubuntu-latest
+          - id: macos-arm64 # Apple Silicon Mac
+            os_runner: macos-14
+          - id: windows-x64
+            os_runner: windows-latest
+
+          # =================================================================
+          # Full Release Matrix: 当您准备好创建正式版本时,
+          # 请取消以下平台的注释, 然后推送一个 v*.*.* 格式的 tag.
+          # =================================================================
+          # # Linux Targets (glibc)
+          # - id: linux-arm64
+          #   os_runner: ubuntu-latest
+          # - id: linux-armv7l
+          #   os_runner: ubuntu-latest
+          # - id: linux-powerpc64el
+          #   os_runner: ubuntu-latest
+          # - id: linux-s390x
+          #   os_runner: ubuntu-latest
+          # - id: linux-mips64le
+          #   os_runner: ubuntu-latest
+          #
+          # # Linux Targets (musl) - 用于静态链接或Alpine等环境
+          # - id: linux-x64-musl
+          #   os_runner: ubuntu-latest
+          # - id: linux-arm64-musl
+          #   os_runner: ubuntu-latest
+          #
+          # # macOS Targets
+          # - id: macos-x64 # Intel Mac
+          #   os_runner: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract PostgreSQL version from tag
+        id: get_version
+        # 从 tag 'v16.3.0' 中提取 '16.3.0'
+        run: echo "PG_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
+      - name: Parse Matrix ID for Linux
+        if: runner.os == 'Linux'
+        id: parse_matrix
+        # 从 'linux-arm64-musl' 中解析出 ARCH='arm64', LIBC='musl'
+        run: |
+          TARGET_HOST=""
+          LIBC=""
+          ARCH=$(echo ${{ matrix.id }} | cut -d'-' -f2)
+          if [[ "${{ matrix.id }}" == *"-musl"* ]]; then
+            LIBC="musl"
+          else
+            LIBC="gnu" # glibc
+          fi
+
+          case $ARCH in
+            x64) TARGET_HOST="x86_64-linux-${LIBC}" ;;
+            arm64) TARGET_HOST="aarch64-linux-${LIBC}" ;;
+            armv7l) TARGET_HOST="arm-linux-gnueabihf" ;; # A common choice for armv7l
+            powerpc64el) TARGET_HOST="powerpc64le-linux-${LIBC}" ;;
+            s390x) TARGET_HOST="s390x-linux-${LIBC}" ;;
+            mips64le) TARGET_HOST="mips64el-linux-gnuabi64" ;; # Note: musl may not be readily available
+          esac
+
+          echo "TARGET_HOST=${TARGET_HOST}" >> $GITHUB_OUTPUT
+          echo "ARCH=${ARCH}" >> $GITHUB_OUTPUT
+          echo "LIBC=${LIBC}" >> $GITHUB_OUTPUT
+
+      - name: Install Dependencies and Cross-Compilers for Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            wget build-essential \
+            # Compilers
+            gcc-x86-64-linux-gnu \
+            gcc-aarch64-linux-gnu \
+            gcc-arm-linux-gnueabihf \
+            gcc-powerpc64le-linux-gnu \
+            gcc-s390x-linux-gnu \
+            gcc-mips64el-linux-gnuabi64 \
+            # Musl support
+            musl-tools \
+            # Dependencies for PostgreSQL build
+            libssl-dev zlib1g-dev
+
+      - name: Download and Extract PostgreSQL Source
+        run: |
+          wget https://ftp.postgresql.org/pub/source/v${{ env.PG_VERSION }}/postgresql-${{ env.PG_VERSION }}.tar.gz
+          tar -xzf postgresql-${{ env.PG_VERSION }}.tar.gz
+
+      - name: Build for Linux
+        if: runner.os == 'Linux'
+        working-directory: postgresql-${{ env.PG_VERSION }}
+        run: |
+          # 设置交叉编译
+          export CC="${{ steps.parse_matrix.outputs.TARGET_HOST }}-gcc"
+
+          # 核心编译步骤
+          ./configure --host=${{ steps.parse_matrix.outputs.TARGET_HOST }} --without-readline --with-openssl --with-zlib
+          make -C src/common all
+          make -C src/include all
+          make -C src/interfaces/libpq all
+          make -C src/bin/pg_dump all
+          make -C src/bin/pg_restore all
+
+      - name: Build for macOS
+        if: runner.os == 'macOS'
+        working-directory: postgresql-${{ env.PG_VERSION }}
+        run: |
+          # 对于macOS，我们可以直接编译
+          # Apple Clang 可以通过 -arch 标志处理 x64/arm64，但我们通过选择runner来简化
+          ./configure --without-readline --with-openssl --with-zlib
+          make -C src/interfaces/libpq all
+          make -C src/bin/pg_dump all
+          make -C src/bin/pg_restore all
+
+      - name: Build for Windows
+        if: runner.os == 'Windows'
+        # Windows构建需要特定的环境，如Perl, MinGW, OpenSSL, zlib
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            perl
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-zlib
+          shell: msys2 {0}
+          working-directory: postgresql-${{ env.PG_VERSION }}
+          run: |
+            # 使用 MinGW 工具链和 configure 脚本进行编译
+            ./configure --without-readline --with-openssl --with-zlib
+            make -C src/interfaces/libpq all
+            make -C src/bin/pg_dump all
+            make -C src/bin/pg_restore all
+
+      - name: Package Artifacts
+        id: package
+        shell: bash
+        run: |
+          # 1. 设置变量
+          ARTIFACT_DIR="staging"
+          PG_BUILD_DIR="postgresql-${{ env.PG_VERSION }}"
+          OS_ID=$(echo ${{ matrix.id }} | cut -d'-' -f1) # linux, macos, windows
+          EXT="" # 文件扩展名
+
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            EXT=".exe"
+          fi
+
+          # 2. 创建目录结构
+          mkdir -p $ARTIFACT_DIR/bin $ARTIFACT_DIR/lib
+
+          # 3. 拷贝二进制文件
+          cp "$PG_BUILD_DIR/src/bin/pg_dump/pg_dump$EXT" "$ARTIFACT_DIR/bin/"
+          cp "$PG_BUILD_DIR/src/bin/pg_restore/pg_restore$EXT" "$ARTIFACT_DIR/bin/"
+
+          # 4. 拷贝动态库
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+              cp $PG_BUILD_DIR/src/interfaces/libpq/libpq.so.* $ARTIFACT_DIR/lib/
+              # 注意：交叉编译的依赖库可能在 /usr/TARGET_HOST/lib 中
+              # ldd $ARTIFACT_DIR/bin/pg_dump # 使用ldd检查并拷贝其他依赖
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+              cp $PG_BUILD_DIR/src/interfaces/libpq/libpq.*.dylib $ARTIFACT_DIR/lib/
+              # otool -L $ARTIFACT_DIR/bin/pg_dump # 检查并拷贝其他依赖，如libssl
+          elif [[ "$RUNNER_OS" == "Windows" ]]; then
+              # MinGW编译的DLLs通常和EXE在同一目录
+              cp $PG_BUILD_DIR/src/interfaces/libpq/libpq.dll $ARTIFACT_DIR/bin/
+              # 还需要拷贝OpenSSL, zlib等DLLs
+              echo "Copying dependency DLLs for Windows..."
+              cp /mingw64/bin/libssl-3-x64.dll $ARTIFACT_DIR/bin/
+              cp /mingw64/bin/libcrypto-3-x64.dll $ARTIFACT_DIR/bin/
+              cp /mingw64/bin/zlib1.dll $ARTIFACT_DIR/bin/
+          fi
+
+          # 5. 创建压缩包
+          ARCHIVE_NAME="pg-tools-v${{ env.PG_VERSION }}-${{ matrix.id }}"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            7z a "${ARCHIVE_NAME}.zip" "./${ARTIFACT_DIR}/*"
+            echo "ARCHIVE_PATH=${ARCHIVE_NAME}.zip" >> $GITHUB_OUTPUT
+          else
+            tar -czf "${ARCHIVE_NAME}.tar.gz" -C $ARTIFACT_DIR .
+            echo "ARCHIVE_PATH=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload to GitHub Release
+        # 仅在推送 tag 时运行此步骤，以防止在手动测试时创建 release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          # action会自动找到与当前tag匹配的release
+          # 如果找不到，它会自动创建一个
+          files: ${{ steps.package.outputs.ARCHIVE_PATH }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
