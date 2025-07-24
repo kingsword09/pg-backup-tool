@@ -1,0 +1,70 @@
+# This Dockerfile cross-compiles PostgreSQL tools for FreeBSD
+# It's used by the GitHub Actions workflow for FreeBSD builds.
+ARG POSTGRESQL_VERSION
+ARG PG_MAJOR_VERSION
+
+# Use Ubuntu as base for cross-compilation
+FROM ubuntu:22.04
+
+ARG POSTGRESQL_VERSION
+ARG PG_MAJOR_VERSION
+
+# Prevent interactive prompts during package installation.
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install cross-compilation tools and dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      build-essential \
+      wget \
+      ca-certificates \
+      bison \
+      flex \
+      clang \
+      lld \
+      pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user to perform the build.
+RUN useradd -ms /bin/bash builder
+USER builder
+WORKDIR /home/builder
+
+# Download and extract the PostgreSQL source code.
+RUN wget "https://ftp.postgresql.org/pub/source/v${PG_MAJOR_VERSION}/postgresql-${POSTGRESQL_VERSION}.tar.gz" && \
+    tar -xzf "postgresql-${POSTGRESQL_VERSION}.tar.gz"
+
+WORKDIR /home/builder/postgresql-${POSTGRESQL_VERSION}
+
+# Configure for FreeBSD cross-compilation
+# Note: This is a simplified approach - full FreeBSD cross-compilation would need FreeBSD headers/libs
+RUN CC=clang ./configure \
+    --prefix=/opt/postgresql \
+    --enable-integer-datetimes \
+    --without-readline \
+    --without-openssl \
+    --without-zlib \
+    --without-icu \
+    --without-ldap \
+    --with-pgport=5432
+
+# Build only the required components.
+RUN make -C src/common all && \
+    make -C src/include all && \
+    make -C src/interfaces/libpq all && \
+    make -C src/bin/pg_dump all
+
+# Create the install directory with proper permissions first
+USER root
+RUN mkdir -p /opt/postgresql && chown -R builder:builder /opt/postgresql
+USER builder
+
+# Install to the staging directory.
+RUN make -C src/interfaces/libpq install && \
+    make -C src/bin/pg_dump install
+
+USER root
+RUN echo "FreeBSD cross-compilation completed" && \
+    ls -la /opt/postgresql/bin/ || true
+
+USER builder

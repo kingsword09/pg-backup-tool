@@ -88,11 +88,20 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           docker run --privileged --rm tonistiigi/binfmt --install all
-          if [[ "${{ inputs.id }}" == *musl* ]]; then
+          
+          # Choose appropriate Dockerfile based on target
+          if [[ "${{ inputs.id }}" == *freebsd* ]]; then
+            echo "DOCKERFILE=dockerfiles/Dockerfile.freebsd" >> $GITHUB_ENV
+          elif [[ "${{ inputs.id }}" == *musl* ]]; then
             echo "DOCKERFILE=dockerfiles/Dockerfile.linux-musl" >> $GITHUB_ENV
+          elif [[ "${{ inputs.id }}" == *arm* ]]; then
+            echo "DOCKERFILE=dockerfiles/Dockerfile.linux-arm" >> $GITHUB_ENV
           else
             echo "DOCKERFILE=dockerfiles/Dockerfile.linux-gnu" >> $GITHUB_ENV
           fi
+          
+          echo "Building for platform: ${{ inputs.platform }}"
+          echo "Using Dockerfile: $DOCKERFILE"
 
       - name: Build with Docker (Linux)
         if: runner.os == 'Linux'

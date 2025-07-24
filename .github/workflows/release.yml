@@ -47,31 +47,68 @@ jobs:
       matrix:
         # Full Release Matrix: All platforms to be built for a release.
         include:
-          - id: linux-x64
+          # Linux x64 (GNU libc)
+          - id: linux-x64-gnu
             target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             platform: linux/amd64
-          - id: linux-arm64
-            target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            platform: linux/arm64/v8
+          # Linux x64 (musl libc)
           - id: linux-x64-musl
             target: x86_64-unknown-linux-musl
             os: ubuntu-latest
             platform: linux/amd64
-          - id: linux-arm64-musl
+          # Linux aarch64 (GNU libc)
+          - id: linux-aarch64-gnu
+            target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux/arm64/v8
+          # Linux aarch64 (musl libc)
+          - id: linux-aarch64-musl
             target: aarch64-unknown-linux-musl
             os: ubuntu-latest
             platform: linux/arm64/v8
+          # Linux arm (GNU EABIHF)
+          - id: linux-arm-gnueabihf
+            target: arm-unknown-linux-gnueabihf
+            os: ubuntu-latest
+            platform: linux/arm/v7
+          # Linux arm (musl EABIHF)
+          - id: linux-arm-musleabihf
+            target: arm-unknown-linux-musleabihf
+            os: ubuntu-latest
+            platform: linux/arm/v7
+          # Linux PowerPC64LE (GNU libc)
+          - id: linux-powerpc64le-gnu
+            target: powerpc64le-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux/ppc64le
+          # Linux s390x (GNU libc)
+          - id: linux-s390x-gnu
+            target: s390x-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux/s390x
+          # Linux RISC-V 64 (GNU libc)
+          - id: linux-riscv64-gnu
+            target: riscv64gc-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux/riscv64
+          # macOS ARM64
           - id: macos-arm64
             target: aarch64-apple-darwin
             os: macos-14
+          # macOS x64
           - id: macos-x64
             target: x86_64-apple-darwin
             os: macos-13
+          # Windows x64
           - id: windows-x64
             target: x86_64-pc-windows-msvc
             os: windows-latest
+          # FreeBSD x64 (cross-compiled on Linux)
+          - id: freebsd-x64
+            target: x86_64-unknown-freebsd
+            os: ubuntu-latest
+            platform: linux/amd64
     with:
       id: ${{ matrix.id }}
       target: ${{ matrix.target }}

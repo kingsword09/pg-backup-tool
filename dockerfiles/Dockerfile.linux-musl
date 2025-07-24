@@ -4,6 +4,7 @@ ARG POSTGRESQL_VERSION
 ARG PG_MAJOR_VERSION
 
 # Use a specific Alpine version for reproducibility.
+# This supports multiple architectures: amd64, arm64, arm/v7
 FROM alpine:3.18
 
 ARG POSTGRESQL_VERSION
@@ -62,15 +63,23 @@ RUN make -C src/interfaces/libpq install && \
 # Copy required shared libraries using ldd to find dependencies
 USER root
 RUN mkdir -p /opt/postgresql/lib && \
+    # Detect architecture for library paths
+    ARCH=$(uname -m) && \
+    echo "Building for architecture: $ARCH" && \
     for binary in /opt/postgresql/bin/pg_dump /opt/postgresql/bin/pg_restore; do \
       if [ -f "$binary" ]; then \
+        echo "Processing dependencies for $binary" && \
         ldd "$binary" 2>/dev/null | grep -E "(libssl|libcrypto|libz)" | awk '{print $3}' | while read lib; do \
           if [ -f "$lib" ] && [ ! -f "/opt/postgresql/lib/$(basename "$lib")" ]; then \
+            echo "Copying library: $lib" && \
             cp "$lib" /opt/postgresql/lib/ 2>/dev/null || true; \
           fi; \
         done; \
       fi; \
-    done
+    done && \
+    # List final libraries for debugging
+    echo "Final libraries in /opt/postgresql/lib:" && \
+    ls -la /opt/postgresql/lib/ || true
 
 # Also include static libraries for potential static linking
 RUN find /opt/postgresql -name "*.a" -exec cp {} /opt/postgresql/lib/ \; 2>/dev/null || true

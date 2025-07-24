@@ -1,10 +1,9 @@
-# This Dockerfile builds pg_dump and pg_restore for Debian-based systems (glibc).
-# It's used by the GitHub Actions workflow for Linux builds.
+# This Dockerfile is optimized for ARM architectures (arm/v7, arm64)
+# It's used by the GitHub Actions workflow for ARM Linux builds.
 ARG POSTGRESQL_VERSION
 ARG PG_MAJOR_VERSION
 
-# Use a specific Debian version for reproducibility.
-# This supports multiple architectures: amd64, arm64, arm/v7, ppc64le, s390x, riscv64
+# Use a specific Debian version that has good ARM support
 FROM debian:bullseye
 
 ARG POSTGRESQL_VERSION
@@ -13,7 +12,7 @@ ARG PG_MAJOR_VERSION
 # Prevent interactive prompts during package installation.
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies.
+# Install build dependencies optimized for ARM
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       build-essential \
@@ -23,6 +22,7 @@ RUN apt-get update && \
       ca-certificates \
       bison \
       flex \
+      gcc-multilib \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user to perform the build.
@@ -36,10 +36,8 @@ RUN wget "https://ftp.postgresql.org/pub/source/v${PG_MAJOR_VERSION}/postgresql-
 
 WORKDIR /home/builder/postgresql-${POSTGRESQL_VERSION}
 
-# Configure the build. We only need a few components, not the full server.
-# The LDFLAGS sets the 'rpath', which bakes a relative library search path
-# into the executables. '$$ORIGIN' is a special linker variable that means
-# 'the directory where the executable is located'. This makes the binaries portable.
+# Configure the build with ARM-optimized settings.
+# The LDFLAGS sets the 'rpath' for portable binaries.
 RUN LDFLAGS="-Wl,-rpath,'\$\$ORIGIN/../lib'" ./configure \
     --prefix=/opt/postgresql \
     --enable-integer-datetimes \
@@ -71,7 +69,7 @@ USER root
 RUN mkdir -p /opt/postgresql/lib && \
     # Detect architecture for library paths
     ARCH=$(uname -m) && \
-    echo "Building for architecture: $ARCH" && \
+    echo "Building for ARM architecture: $ARCH" && \
     for binary in /opt/postgresql/bin/pg_dump /opt/postgresql/bin/pg_restore; do \
       if [ -f "$binary" ]; then \
         echo "Processing dependencies for $binary" && \
