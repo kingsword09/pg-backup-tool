@@ -17,7 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       build-essential \
-      wget \
+      git \
       zlib1g-dev \
       libssl-dev \
       ca-certificates \
@@ -26,6 +26,7 @@ RUN apt-get update && \
       perl \
       file \
       binutils \
+      patchelf \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user to perform the build.
@@ -33,15 +34,17 @@ RUN useradd -ms /bin/bash builder
 USER builder
 WORKDIR /home/builder
 
-# Download and extract the PostgreSQL source code.
-RUN wget "https://ftp.postgresql.org/pub/source/v${PG_MAJOR_VERSION}/postgresql-${POSTGRESQL_VERSION}.tar.gz" && \
-    tar -xzf "postgresql-${POSTGRESQL_VERSION}.tar.gz"
+# Clone PostgreSQL source code using git (more reliable for multi-arch)
+RUN branch=$(echo "$POSTGRESQL_VERSION" | awk -F. '{print "REL_"$1"_"$2}') && \
+    echo "Cloning PostgreSQL branch: $branch" && \
+    git clone --depth 1 --branch $branch -c advice.detachedHead=false \
+    https://git.postgresql.org/git/postgresql.git postgresql-src
 
-WORKDIR /home/builder/postgresql-${POSTGRESQL_VERSION}
+WORKDIR /home/builder/postgresql-src
 
-# Configure the build. We only need a few components, not the full server.
+# Configure the build. We only need pg_dump and pg_restore components.
 # The LDFLAGS sets the 'rpath', which bakes a relative library search path
-# into the executables. '$$ORIGIN' is a special linker variable that means
+# into the executables. '$ORIGIN' is a special linker variable that means
 # 'the directory where the executable is located'. This makes the binaries portable.
 RUN LDFLAGS="-Wl,-rpath,'\$\$ORIGIN/../lib'" ./configure \
     --prefix=/opt/postgresql \
@@ -54,7 +57,7 @@ RUN LDFLAGS="-Wl,-rpath,'\$\$ORIGIN/../lib'" ./configure \
     --without-ldap \
     --with-pgport=5432
 
-# Build only the required components.
+# Build only the required components for pg_dump/pg_restore.
 RUN make -C src/common all && \
     make -C src/include all && \
     make -C src/interfaces/libpq all && \
