@@ -1,11 +1,11 @@
-# This Dockerfile builds pg_dump and pg_restore for Debian-based systems (glibc).
+# This Dockerfile builds pg_dump and pg_restore for GNU libc systems.
 # It's used by the GitHub Actions workflow for Linux builds.
 ARG POSTGRESQL_VERSION
 ARG PG_MAJOR_VERSION
 
-# Use Debian 12.4 for better multi-architecture support
+# Use Ubuntu 22.04 for better multi-architecture support including RISC-V
 # Supports: amd64, arm64, arm/v7, ppc64le, s390x, riscv64
-FROM debian:12.4
+FROM ubuntu:22.04
 
 ARG POSTGRESQL_VERSION
 ARG PG_MAJOR_VERSION
