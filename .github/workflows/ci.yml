@@ -4,6 +4,8 @@ name: Continuous Integration
 # This workflow runs on pushes to the main branch and on pull requests.
 # Its goal is to verify that the build process is still functional after changes.
 # It calls the reusable 'build.yml' workflow to perform the actual build and test.
+#
+# For testing additional platforms, use the "Manual Platform Test" workflow.
 
 on:
   push:
@@ -11,18 +13,26 @@ on:
       - main
       - master
   pull_request:
+  workflow_dispatch:
+    inputs:
+      run_extended_tests:
+        description: "Run extended platform tests (includes more architectures)"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   # This job will call the reusable build workflow for each of the primary
   # test platforms to ensure they build correctly.
-  test-builds:
-    name: Test Build ${{ matrix.id }}
+  # Standard CI builds (always run)
+  standard-builds:
+    name: Standard Build ${{ matrix.id }}
     uses: ./.github/workflows/build.yml
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Test primary platforms in CI
+          # Core platforms tested in every CI run
           - id: linux-x64-gnu
             target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
@@ -31,16 +41,40 @@ jobs:
             target: x86_64-unknown-linux-musl
             os: ubuntu-latest
             platform: linux/amd64
-          - id: linux-aarch64-gnu
-            target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            platform: linux/arm64/v8
           - id: macos-arm64
             target: aarch64-apple-darwin
             os: macos-14
           - id: windows-x64
             target: x86_64-pc-windows-msvc
             os: windows-latest
+    with:
+      id: ${{ matrix.id }}
+      target: ${{ matrix.target }}
+      os: ${{ matrix.os }}
+      platform: ${{ matrix.platform }}
+      release: false
+
+  # Extended CI builds (only when manually requested)
+  extended-builds:
+    name: Extended Build ${{ matrix.id }}
+    if: github.event.inputs.run_extended_tests == 'true'
+    uses: ./.github/workflows/build.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: linux-aarch64-gnu
+            target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux/arm64/v8
+          - id: linux-arm-gnueabihf
+            target: arm-unknown-linux-gnueabihf
+            os: ubuntu-latest
+            platform: linux/arm/v7
+          - id: freebsd-x64
+            target: x86_64-unknown-freebsd
+            os: ubuntu-latest
+            platform: linux/amd64
     with:
       # Pass the matrix variables to the reusable workflow.
       id: ${{ matrix.id }}
@@ -49,3 +83,41 @@ jobs:
       platform: ${{ matrix.platform }}
       # This is a CI run, not a release, so set 'release' to false.
       release: false
+
+  # Summary job to provide clear feedback
+  ci-summary:
+    name: CI Summary
+    needs: [standard-builds, extended-builds]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate CI Summary
+        run: |
+          echo "## CI Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ github.event.inputs.run_extended_tests }}" == "true" ]]; then
+            echo "**Mode:** Extended testing (includes additional architectures)" >> $GITHUB_STEP_SUMMARY
+            standard_status="${{ needs.standard-builds.result }}"
+            extended_status="${{ needs.extended-builds.result }}"
+            echo "**Standard Builds:** $standard_status" >> $GITHUB_STEP_SUMMARY
+            echo "**Extended Builds:** $extended_status" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Mode:** Standard testing (core platforms only)" >> $GITHUB_STEP_SUMMARY
+            echo "**Build Status:** ${{ needs.standard-builds.result }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.standard-builds.result }}" == "success" ]] && [[ "${{ needs.extended-builds.result }}" != "failure" ]]; then
+            echo "✅ All builds completed successfully!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some builds failed. Check individual job logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Testing Options" >> $GITHUB_STEP_SUMMARY
+          echo "- **Standard CI:** Tests core platforms (linux-x64-gnu, linux-x64-musl, macos-arm64, windows-x64)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Extended CI:** Manually trigger with 'Run extended platform tests' enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- **Individual Platform Testing:** Use the 'Manual Platform Test' workflow" >> $GITHUB_STEP_SUMMARY
+          echo "- **Full Release Testing:** All platforms are tested during release builds" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,237 @@
+# .github/workflows/manual-test.yml
+name: Manual Platform Test
+
+# This workflow allows manual testing of specific platforms or all platforms
+# It's useful for testing new platforms or debugging build issues before release
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to test (or "all" for all platforms)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'linux-x64-gnu'
+          - 'linux-x64-musl'
+          - 'linux-aarch64-gnu'
+          - 'linux-aarch64-musl'
+          - 'linux-arm-gnueabihf'
+          - 'linux-arm-musleabihf'
+          - 'linux-powerpc64le-gnu'
+          - 'linux-s390x-gnu'
+          - 'linux-riscv64-gnu'
+          - 'macos-arm64'
+          - 'macos-x64'
+          - 'windows-x64'
+          - 'freebsd-x64'
+      postgresql_version:
+        description: 'PostgreSQL version to test (optional, defaults to workflow default)'
+        required: false
+        type: string
+
+jobs:
+  # Job to determine which platforms to build based on input
+  determine-matrix:
+    name: Determine Build Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set Build Matrix
+        id: set-matrix
+        run: |
+          if [[ "${{ github.event.inputs.platform }}" == "all" ]]; then
+            # All platforms matrix
+            matrix='{
+              "include": [
+                {
+                  "id": "linux-x64-gnu",
+                  "target": "x86_64-unknown-linux-gnu",
+                  "os": "ubuntu-latest",
+                  "platform": "linux/amd64"
+                },
+                {
+                  "id": "linux-x64-musl",
+                  "target": "x86_64-unknown-linux-musl",
+                  "os": "ubuntu-latest",
+                  "platform": "linux/amd64"
+                },
+                {
+                  "id": "linux-aarch64-gnu",
+                  "target": "aarch64-unknown-linux-gnu",
+                  "os": "ubuntu-latest",
+                  "platform": "linux/arm64/v8"
+                },
+                {
+                  "id": "linux-aarch64-musl",
+                  "target": "aarch64-unknown-linux-musl",
+                  "os": "ubuntu-latest",
+                  "platform": "linux/arm64/v8"
+                },
+                {
+                  "id": "linux-arm-gnueabihf",
+                  "target": "arm-unknown-linux-gnueabihf",
+                  "os": "ubuntu-latest",
+                  "platform": "linux/arm/v7"
+                },
+                {
+                  "id": "linux-arm-musleabihf",
+                  "target": "arm-unknown-linux-musleabihf",
+                  "os": "ubuntu-latest",
+                  "platform": "linux/arm/v7"
+                },
+                {
+                  "id": "linux-powerpc64le-gnu",
+                  "target": "powerpc64le-unknown-linux-gnu",
+                  "os": "ubuntu-latest",
+                  "platform": "linux/ppc64le"
+                },
+                {
+                  "id": "linux-s390x-gnu",
+                  "target": "s390x-unknown-linux-gnu",
+                  "os": "ubuntu-latest",
+                  "platform": "linux/s390x"
+                },
+                {
+                  "id": "linux-riscv64-gnu",
+                  "target": "riscv64gc-unknown-linux-gnu",
+                  "os": "ubuntu-latest",
+                  "platform": "linux/riscv64"
+                },
+                {
+                  "id": "macos-arm64",
+                  "target": "aarch64-apple-darwin",
+                  "os": "macos-14"
+                },
+                {
+                  "id": "macos-x64",
+                  "target": "x86_64-apple-darwin",
+                  "os": "macos-13"
+                },
+                {
+                  "id": "windows-x64",
+                  "target": "x86_64-pc-windows-msvc",
+                  "os": "windows-latest"
+                },
+                {
+                  "id": "freebsd-x64",
+                  "target": "x86_64-unknown-freebsd",
+                  "os": "ubuntu-latest",
+                  "platform": "linux/amd64"
+                }
+              ]
+            }'
+          else
+            # Single platform matrix
+            platform="${{ github.event.inputs.platform }}"
+            case "$platform" in
+              "linux-x64-gnu")
+                matrix='{"include":[{"id":"linux-x64-gnu","target":"x86_64-unknown-linux-gnu","os":"ubuntu-latest","platform":"linux/amd64"}]}'
+                ;;
+              "linux-x64-musl")
+                matrix='{"include":[{"id":"linux-x64-musl","target":"x86_64-unknown-linux-musl","os":"ubuntu-latest","platform":"linux/amd64"}]}'
+                ;;
+              "linux-aarch64-gnu")
+                matrix='{"include":[{"id":"linux-aarch64-gnu","target":"aarch64-unknown-linux-gnu","os":"ubuntu-latest","platform":"linux/arm64/v8"}]}'
+                ;;
+              "linux-aarch64-musl")
+                matrix='{"include":[{"id":"linux-aarch64-musl","target":"aarch64-unknown-linux-musl","os":"ubuntu-latest","platform":"linux/arm64/v8"}]}'
+                ;;
+              "linux-arm-gnueabihf")
+                matrix='{"include":[{"id":"linux-arm-gnueabihf","target":"arm-unknown-linux-gnueabihf","os":"ubuntu-latest","platform":"linux/arm/v7"}]}'
+                ;;
+              "linux-arm-musleabihf")
+                matrix='{"include":[{"id":"linux-arm-musleabihf","target":"arm-unknown-linux-musleabihf","os":"ubuntu-latest","platform":"linux/arm/v7"}]}'
+                ;;
+              "linux-powerpc64le-gnu")
+                matrix='{"include":[{"id":"linux-powerpc64le-gnu","target":"powerpc64le-unknown-linux-gnu","os":"ubuntu-latest","platform":"linux/ppc64le"}]}'
+                ;;
+              "linux-s390x-gnu")
+                matrix='{"include":[{"id":"linux-s390x-gnu","target":"s390x-unknown-linux-gnu","os":"ubuntu-latest","platform":"linux/s390x"}]}'
+                ;;
+              "linux-riscv64-gnu")
+                matrix='{"include":[{"id":"linux-riscv64-gnu","target":"riscv64gc-unknown-linux-gnu","os":"ubuntu-latest","platform":"linux/riscv64"}]}'
+                ;;
+              "macos-arm64")
+                matrix='{"include":[{"id":"macos-arm64","target":"aarch64-apple-darwin","os":"macos-14"}]}'
+                ;;
+              "macos-x64")
+                matrix='{"include":[{"id":"macos-x64","target":"x86_64-apple-darwin","os":"macos-13"}]}'
+                ;;
+              "windows-x64")
+                matrix='{"include":[{"id":"windows-x64","target":"x86_64-pc-windows-msvc","os":"windows-latest"}]}'
+                ;;
+              "freebsd-x64")
+                matrix='{"include":[{"id":"freebsd-x64","target":"x86_64-unknown-freebsd","os":"ubuntu-latest","platform":"linux/amd64"}]}'
+                ;;
+              *)
+                echo "Unknown platform: $platform"
+                exit 1
+                ;;
+            esac
+          fi
+          
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "Selected matrix:"
+          echo "$matrix" | jq '.'
+
+  # Job to build the selected platforms
+  test-build:
+    name: Test Build ${{ matrix.id }}
+    needs: [determine-matrix]
+    uses: ./.github/workflows/build.yml
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.determine-matrix.outputs.matrix) }}
+    with:
+      id: ${{ matrix.id }}
+      target: ${{ matrix.target }}
+      os: ${{ matrix.os }}
+      platform: ${{ matrix.platform }}
+      release: false
+    secrets: inherit
+
+  # Summary job to report results
+  test-summary:
+    name: Test Summary
+    needs: [determine-matrix, test-build]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate Test Summary
+        run: |
+          echo "## Manual Platform Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Platform(s) tested:** ${{ github.event.inputs.platform }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ github.event.inputs.postgresql_version }}" != "" ]]; then
+            echo "**PostgreSQL version:** ${{ github.event.inputs.postgresql_version }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Build Status:** ${{ needs.test-build.result }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.test-build.result }}" == "success" ]]; then
+            echo "✅ All selected platforms built successfully!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some builds failed. Check the individual job logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Available Platforms" >> $GITHUB_STEP_SUMMARY
+          echo "- linux-x64-gnu" >> $GITHUB_STEP_SUMMARY
+          echo "- linux-x64-musl" >> $GITHUB_STEP_SUMMARY
+          echo "- linux-aarch64-gnu" >> $GITHUB_STEP_SUMMARY
+          echo "- linux-aarch64-musl" >> $GITHUB_STEP_SUMMARY
+          echo "- linux-arm-gnueabihf" >> $GITHUB_STEP_SUMMARY
+          echo "- linux-arm-musleabihf" >> $GITHUB_STEP_SUMMARY
+          echo "- linux-powerpc64le-gnu" >> $GITHUB_STEP_SUMMARY
+          echo "- linux-s390x-gnu" >> $GITHUB_STEP_SUMMARY
+          echo "- linux-riscv64-gnu" >> $GITHUB_STEP_SUMMARY
+          echo "- macos-arm64" >> $GITHUB_STEP_SUMMARY
+          echo "- macos-x64" >> $GITHUB_STEP_SUMMARY
+          echo "- windows-x64" >> $GITHUB_STEP_SUMMARY
+          echo "- freebsd-x64" >> $GITHUB_STEP_SUMMARY

@@ -46,8 +46,19 @@ Get the latest binaries from the [Releases](../../releases) page. Each release i
 
 The binaries are built and released automatically via GitHub Actions:
 
-- **CI Builds:** Pushes and pull requests to the `main` branch trigger test builds for key platforms
+- **CI Builds:** Pushes and pull requests trigger test builds for core platforms
+- **Extended CI:** Manual trigger with additional architectures for comprehensive testing
+- **Manual Platform Tests:** Test individual platforms or all platforms on-demand
 - **Releases:** Version tags (e.g., `v16.3.2`) trigger full multi-platform builds and publish to GitHub Releases
+
+### Testing Options
+
+| Workflow | Trigger | Platforms | Use Case |
+|----------|---------|-----------|----------|
+| **Continuous Integration** | Automatic (push/PR) | Core platforms | Fast feedback |
+| **Extended CI** | Manual with option | Core + ARM/FreeBSD | Pre-release validation |
+| **Manual Platform Test** | Manual with selection | Any single or all | Debug specific issues |
+| **Release** | Git tag | All platforms | Production builds |
 
 ## 🎯 Use Cases
 

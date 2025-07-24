@@ -22,6 +22,9 @@ RUN apt-get update && \
       ca-certificates \
       bison \
       flex \
+      perl \
+      file \
+      binutils \
       gcc-multilib \
     && rm -rf /var/lib/apt/lists/*
 

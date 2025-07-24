@@ -20,7 +20,10 @@ RUN apk add --no-cache \
     openssl-dev \
     ca-certificates \
     bison \
-    flex
+    flex \
+    perl \
+    file \
+    binutils
 
 # Create a non-root user to perform the build.
 RUN adduser -D -s /bin/sh builder
@@ -79,7 +82,13 @@ RUN mkdir -p /opt/postgresql/lib && \
     done && \
     # List final libraries for debugging
     echo "Final libraries in /opt/postgresql/lib:" && \
-    ls -la /opt/postgresql/lib/ || true
+    ls -la /opt/postgresql/lib/ || true && \
+    # Show binary information
+    echo "Binary information:" && \
+    file /opt/postgresql/bin/pg_dump /opt/postgresql/bin/pg_restore 2>/dev/null || true && \
+    # Show library dependencies (may not work for static)
+    echo "Library dependencies:" && \
+    ldd /opt/postgresql/bin/pg_dump 2>/dev/null || echo "Static binary or ldd not available"
 
 # Also include static libraries for potential static linking
 RUN find /opt/postgresql -name "*.a" -exec cp {} /opt/postgresql/lib/ \; 2>/dev/null || true

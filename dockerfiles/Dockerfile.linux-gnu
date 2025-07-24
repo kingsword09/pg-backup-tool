@@ -23,6 +23,9 @@ RUN apt-get update && \
       ca-certificates \
       bison \
       flex \
+      perl \
+      file \
+      binutils \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user to perform the build.
@@ -85,6 +88,12 @@ RUN mkdir -p /opt/postgresql/lib && \
     done && \
     # List final libraries for debugging
     echo "Final libraries in /opt/postgresql/lib:" && \
-    ls -la /opt/postgresql/lib/ || true
+    ls -la /opt/postgresql/lib/ || true && \
+    # Show binary information
+    echo "Binary information:" && \
+    file /opt/postgresql/bin/pg_dump /opt/postgresql/bin/pg_restore 2>/dev/null || true && \
+    # Show library dependencies
+    echo "Library dependencies:" && \
+    ldd /opt/postgresql/bin/pg_dump 2>/dev/null || true
 
 USER builder
