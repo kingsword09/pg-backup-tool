@@ -11,7 +11,6 @@ on:
   push:
     branches:
       - main
-      - master
   pull_request:
   workflow_dispatch:
     inputs:
@@ -21,12 +20,17 @@ on:
         default: false
         type: boolean
 
+permissions:
+  contents: read
+
 jobs:
   # This job will call the reusable build workflow for each of the primary
   # test platforms to ensure they build correctly.
   # Standard CI builds (always run)
   standard-builds:
     name: Standard Build ${{ matrix.id }}
+    permissions:
+      contents: read
     uses: ./.github/workflows/build.yml
     strategy:
       fail-fast: false
@@ -58,6 +62,8 @@ jobs:
   extended-builds:
     name: Extended Build ${{ matrix.id }}
     if: github.event.inputs.run_extended_tests == 'true'
+    permissions:
+      contents: read
     uses: ./.github/workflows/build.yml
     strategy:
       fail-fast: false
@@ -89,27 +95,31 @@ jobs:
     name: CI Summary
     needs: [standard-builds, extended-builds]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: always()
     steps:
       - name: Generate CI Summary
+        env:
+          RUN_EXTENDED_TESTS: ${{ github.event.inputs.run_extended_tests }}
+          STANDARD_BUILDS_RESULT: ${{ needs.standard-builds.result }}
+          EXTENDED_BUILDS_RESULT: ${{ needs.extended-builds.result }}
         run: |
           echo "## CI Build Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ github.event.inputs.run_extended_tests }}" == "true" ]]; then
+          if [[ "$RUN_EXTENDED_TESTS" == "true" ]]; then
             echo "**Mode:** Extended testing (includes additional architectures)" >> $GITHUB_STEP_SUMMARY
-            standard_status="${{ needs.standard-builds.result }}"
-            extended_status="${{ needs.extended-builds.result }}"
-            echo "**Standard Builds:** $standard_status" >> $GITHUB_STEP_SUMMARY
-            echo "**Extended Builds:** $extended_status" >> $GITHUB_STEP_SUMMARY
+            echo "**Standard Builds:** $STANDARD_BUILDS_RESULT" >> $GITHUB_STEP_SUMMARY
+            echo "**Extended Builds:** $EXTENDED_BUILDS_RESULT" >> $GITHUB_STEP_SUMMARY
           else
             echo "**Mode:** Standard testing (core platforms only)" >> $GITHUB_STEP_SUMMARY
-            echo "**Build Status:** ${{ needs.standard-builds.result }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Build Status:** $STANDARD_BUILDS_RESULT" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ needs.standard-builds.result }}" == "success" ]] && [[ "${{ needs.extended-builds.result }}" != "failure" ]]; then
+          if [[ "$STANDARD_BUILDS_RESULT" == "success" ]] && [[ "$EXTENDED_BUILDS_RESULT" != "failure" ]]; then
             echo "✅ All builds completed successfully!" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Some builds failed. Check individual job logs for details." >> $GITHUB_STEP_SUMMARY

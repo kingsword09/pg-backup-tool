@@ -32,18 +32,25 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   # Job to determine which platforms to build based on input
   determine-matrix:
     name: Determine Build Matrix
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Set Build Matrix
         id: set-matrix
+        env:
+          INPUT_PLATFORM: ${{ github.event.inputs.platform }}
         run: |
-          if [[ "${{ github.event.inputs.platform }}" == "all" ]]; then
+          if [[ "$INPUT_PLATFORM" == "all" ]]; then
             # All platforms matrix
             matrix='{
               "include": [
@@ -126,7 +133,7 @@ jobs:
             }'
           else
             # Single platform matrix
-            platform="${{ github.event.inputs.platform }}"
+            platform="$INPUT_PLATFORM"
             case "$platform" in
               "linux-x64-gnu")
                 matrix='{"include":[{"id":"linux-x64-gnu","target":"x86_64-unknown-linux-gnu","os":"ubuntu-latest","platform":"linux/amd64"}]}'
@@ -182,6 +189,8 @@ jobs:
   test-build:
     name: Test Build ${{ matrix.id }}
     needs: [determine-matrix]
+    permissions:
+      contents: read
     uses: ./.github/workflows/build.yml
     strategy:
       fail-fast: false
@@ -192,29 +201,34 @@ jobs:
       os: ${{ matrix.os }}
       platform: ${{ matrix.platform }}
       release: false
-    secrets: inherit
 
   # Summary job to report results
   test-summary:
     name: Test Summary
     needs: [determine-matrix, test-build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: always()
     steps:
       - name: Generate Test Summary
+        env:
+          INPUT_PLATFORM: ${{ github.event.inputs.platform }}
+          INPUT_POSTGRESQL_VERSION: ${{ github.event.inputs.postgresql_version }}
+          TEST_BUILD_RESULT: ${{ needs.test-build.result }}
         run: |
           echo "## Manual Platform Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Platform(s) tested:** ${{ github.event.inputs.platform }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Platform(s) tested:** $INPUT_PLATFORM" >> $GITHUB_STEP_SUMMARY
           
-          if [[ "${{ github.event.inputs.postgresql_version }}" != "" ]]; then
-            echo "**PostgreSQL version:** ${{ github.event.inputs.postgresql_version }}" >> $GITHUB_STEP_SUMMARY
+          if [[ "$INPUT_POSTGRESQL_VERSION" != "" ]]; then
+            echo "**PostgreSQL version:** $INPUT_POSTGRESQL_VERSION" >> $GITHUB_STEP_SUMMARY
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Build Status:** ${{ needs.test-build.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Build Status:** $TEST_BUILD_RESULT" >> $GITHUB_STEP_SUMMARY
           
-          if [[ "${{ needs.test-build.result }}" == "success" ]]; then
+          if [[ "$TEST_BUILD_RESULT" == "success" ]]; then
             echo "✅ All selected platforms built successfully!" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Some builds failed. Check the individual job logs for details." >> $GITHUB_STEP_SUMMARY
