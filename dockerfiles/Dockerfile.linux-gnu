@@ -20,6 +20,7 @@ RUN apt-get update && \
       zlib1g-dev \
       libssl-dev \
       ca-certificates \
+      bison \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user to perform the build.

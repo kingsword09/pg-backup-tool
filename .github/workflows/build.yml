@@ -120,7 +120,12 @@ jobs:
       - name: Build from Source (macOS)
         if: runner.os == 'macOS'
         working-directory: postgresql-${{ env.PG_VERSION }}
+        env:
+          # Set flags to help configure find the Homebrew-installed OpenSSL.
+          LDFLAGS: "-L$(brew --prefix openssl)/lib"
+          CPPFLAGS: "-I$(brew --prefix openssl)/include"
         run: |
+          # The LDFLAGS and CPPFLAGS env vars will be used automatically by ./configure.
           ./configure \
             --prefix=${INSTALL_DIR} \
             --without-readline \
@@ -162,8 +167,9 @@ jobs:
           fi
 
       - name: Test Binaries
-        working-directory: ${{ env.INSTALL_DIR }}
         run: |
+          # Change directory within the script for Windows compatibility.
+          cd "${INSTALL_DIR}"
           cp "${ROOT_DIR}/scripts/test.sh" .
           chmod +x test.sh
           # Test against the full version string, which is what `pg_dump --version` will output.
