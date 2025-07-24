@@ -38,7 +38,8 @@ RUN ./configure \
     --prefix=/opt/postgresql \
     --without-readline \
     --with-openssl \
-    --with-zlib
+    --with-zlib \
+    --without-icu
 
 # Build only the required binaries and libraries.
 RUN make -C src/common all && \

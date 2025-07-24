@@ -125,7 +125,8 @@ jobs:
             --prefix=${INSTALL_DIR} \
             --without-readline \
             --with-openssl \
-            --with-zlib
+            --with-zlib \
+            --without-icu
           make -C src/interfaces/libpq all install
           make -C src/bin/pg_dump all install
           make -C src/bin/pg_restore all install
