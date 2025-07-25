@@ -1,0 +1,77 @@
+{
+  "name": "pg-backup-tool",
+  "version": "1.0.0",
+  "description": "Cross-platform PostgreSQL `pg_dump` and `pg_restore` binaries built automatically for multiple architectures.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --noEmit --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "pnpm run clean && pnpm run build"
+  },
+  "keywords": [
+    "postgresql",
+    "pg_dump",
+    "pg_restore",
+    "database",
+    "backup",
+    "restore",
+    "cross-platform",
+    "multi-architecture",
+    "typescript",
+    "nodejs",
+    "cli",
+    "automation",
+    "devops"
+  ],
+  "author": {
+    "name": "Kingsword",
+    "email": "kingsword09@gmail.com",
+    "url": "https://github.com/kingsword09"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kingsword09/pg-backup-tool.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kingsword09/pg-backup-tool/issues"
+  },
+  "homepage": "https://github.com/kingsword09/pg-backup-tool#readme",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@10.13.1",
+  "os": [
+    "linux",
+    "darwin",
+    "win32",
+    "freebsd"
+  ],
+  "cpu": [
+    "x64",
+    "arm64",
+    "arm",
+    "ppc64",
+    "s390x",
+    "riscv64"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.9",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "commander": "^11.0.0"
+  }
+}
