@@ -64,6 +64,11 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -112,17 +117,17 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: latest
 
       - name: Install Dependencies
         run: pnpm install
@@ -138,13 +143,13 @@ jobs:
             const pkg = require('./package.json');
             const finalVersion = \`\${pkg.version}-pg-\${pkg.pgVersion}\`;
             pkg.version = finalVersion;
-            
+
             for (const key in pkg.optionalDependencies) {
               if (pkg.optionalDependencies[key] === 'workspace:*') {
                 pkg.optionalDependencies[key] = finalVersion;
               }
             }
-            
+
             fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
             console.log(`::set-output name=version::\${finalVersion}`);
           "
