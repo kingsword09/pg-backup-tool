@@ -74,8 +74,31 @@ async function main() {
       env: { ...process.env, ...platformConfig },
     });
   } else if (process.platform === 'win32') {
-    // Similar logic for windows would go here
-    console.log('Windows local build not yet implemented in this script.');
+    // Try PowerShell first, fallback to batch
+    const psScriptPath = path.join(rootDir, 'scripts', 'build-local-win32.ps1');
+    const batScriptPath = path.join(
+      rootDir,
+      'scripts',
+      'build-local-win32.bat',
+    );
+
+    // Set environment variables
+    const env = { ...process.env };
+    Object.entries(platformConfig).forEach(([key, value]) => {
+      env[key] = value;
+    });
+
+    try {
+      // Try PowerShell first
+      await runCommand(
+        'powershell',
+        ['-ExecutionPolicy', 'Bypass', '-File', psScriptPath],
+        { env },
+      );
+    } catch {
+      console.log('PowerShell failed, trying batch script...');
+      await runCommand('cmd', ['/c', batScriptPath], { env });
+    }
   }
 
   console.log('Build finished. Copying artifacts...');

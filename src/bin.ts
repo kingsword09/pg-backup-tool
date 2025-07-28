@@ -52,7 +52,12 @@ export async function getBinPath(
   try {
     const pkgJsonPath = require.resolve(`${pkgName}/package.json`);
     const pkgDir = join(pkgJsonPath, '..');
-    const binPath = join(pkgDir, 'bin', binName);
+
+    // Add .exe extension for Windows
+    const platform = getPlatform();
+    const actualBinName = platform === 'win32' ? `${binName}.exe` : binName;
+
+    const binPath = join(pkgDir, 'bin', actualBinName);
     await fs.access(binPath);
     return binPath;
   } catch {
