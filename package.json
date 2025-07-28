@@ -1,6 +1,7 @@
 {
   "name": "pg-backup-tool",
   "version": "1.0.0",
+  "pgVersion": "17.5.0",
   "description": "Cross-platform PostgreSQL `pg_dump` and `pg_restore` binaries built automatically for multiple architectures.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -26,12 +27,15 @@
   ],
   "scripts": {
     "build": "tsdown",
+    "build:local": "node scripts/build-local.mjs",
+    "test:local": "node scripts/test-local.mjs",
     "dev": "tsc --noEmit --watch",
-    "clean": "rm -rf dist",
+    "clean": "rm -rf dist npm",
     "lint": "oxlint .",
     "format": "prettier --write .",
     "prepare": "husky",
-    "prepublishOnly": "pnpm run clean && pnpm run build"
+    "prepublishOnly": "pnpm run clean && pnpm run build",
+    "create-packages": "node scripts/create-npm-packages.mjs"
   },
   "keywords": [
     "postgresql",
@@ -91,10 +95,25 @@
     "oxlint": "^1.8.0",
     "prettier": "^3.6.2",
     "tsdown": "^0.13.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "yaml": "^2.8.0"
   },
   "dependencies": {
     "commander": "^11.0.0"
+  },
+  "optionalDependencies": {
+    "@kingsword/pg-backup-tool-freebsd-x64": "workspace:*",
+    "@kingsword/pg-backup-tool-linux-aarch64-gnu": "workspace:*",
+    "@kingsword/pg-backup-tool-linux-aarch64-musl": "workspace:*",
+    "@kingsword/pg-backup-tool-linux-arm-gnueabihf": "workspace:*",
+    "@kingsword/pg-backup-tool-linux-powerpc64le-gnu": "workspace:*",
+    "@kingsword/pg-backup-tool-linux-riscv64-gnu": "workspace:*",
+    "@kingsword/pg-backup-tool-linux-s390x-gnu": "workspace:*",
+    "@kingsword/pg-backup-tool-linux-x64-gnu": "workspace:*",
+    "@kingsword/pg-backup-tool-linux-x64-musl": "workspace:*",
+    "@kingsword/pg-backup-tool-macos-arm64": "workspace:*",
+    "@kingsword/pg-backup-tool-macos-x64": "workspace:*",
+    "@kingsword/pg-backup-tool-windows-x64": "workspace:*"
   },
   "lint-staged": {
     "*.{js,ts,json,md}": [

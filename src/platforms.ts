@@ -1,4 +1,4 @@
-import { Platform, Arch, Libc } from './system';
+import { Platform, Arch, Libc } from './system.js';
 
 type PlatformMap = {
   [P in Platform]?: {

@@ -4,6 +4,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+pnpm-workspace.yaml
 
 # Build outputs
 dist/
@@ -70,3 +71,6 @@ logs
 # Temporary files
 tmp/
 temp/
+
+npm/**/bin/
+npm/**/lib/

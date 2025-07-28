@@ -1,134 +1,155 @@
 # .github/workflows/release.yml
 name: Release
 
-# This workflow creates a full, multi-platform release.
-#
-# It follows a safe, three-stage process:
-# 1. create-release: A draft GitHub Release is created. This acts as a staging
-#    area for the compiled binaries.
-# 2. build: The reusable build workflow is called for all target platforms.
-#    Each successful build job attaches its binary to the draft release.
-# 3. publish-release: After all builds are successful, this job marks the
-#    draft release as "published", making it publicly visible.
-
 on:
   push:
     tags:
-      # Trigger on tags like "v1.2.3".
       - "v[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
-  # Job 1: Create a draft release to act as a container for the build artifacts.
-  create-release:
-    name: Create Draft Release
-    runs-on: ubuntu-latest
-    permissions:
-      # Required to create a release.
-      contents: write
-    steps:
-      - name: Create GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Get the tag name from the Git ref (e.g., refs/tags/v1.2.3 -> v1.2.3).
-          TAG_NAME: ${{ github.ref_name }}
-        run: |
-          gh release create "$TAG_NAME" \
-            --draft \
-            --title "$TAG_NAME" \
-            --verify-tag
-
-  # Job 2: Build all platforms and upload artifacts to the draft release.
-  build:
-    name: Build ${{ matrix.id }}
-    needs: [create-release]
-    uses: ./.github/workflows/build.yml
+  build_and_publish:
+    name: Build and Publish ${{ matrix.id }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        # Full Release Matrix: All platforms to be built for a release.
         include:
-          # Linux x64 (GNU libc)
           - id: linux-x64-gnu
             target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             platform: linux/amd64
-          # Linux x64 (musl libc)
           - id: linux-x64-musl
             target: x86_64-unknown-linux-musl
             os: ubuntu-latest
             platform: linux/amd64
-          # Linux aarch64 (GNU libc)
           - id: linux-aarch64-gnu
             target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             platform: linux/arm64/v8
-          # Linux aarch64 (musl libc)
           - id: linux-aarch64-musl
             target: aarch64-unknown-linux-musl
             os: ubuntu-latest
             platform: linux/arm64/v8
-          # Linux arm (GNU EABIHF)
           - id: linux-arm-gnueabihf
             target: arm-unknown-linux-gnueabihf
             os: ubuntu-latest
             platform: linux/arm/v7
-          # Linux arm (musl EABIHF)
-          - id: linux-arm-musleabihf
-            target: arm-unknown-linux-musleabihf
-            os: ubuntu-latest
-            platform: linux/arm/v7
-          # Linux PowerPC64LE (GNU libc)
-          - id: linux-powerpc64le-gnu
-            target: powerpc64le-unknown-linux-gnu
-            os: ubuntu-latest
-            platform: linux/ppc64le
-          # Linux s390x (GNU libc)
-          - id: linux-s390x-gnu
-            target: s390x-unknown-linux-gnu
-            os: ubuntu-latest
-            platform: linux/s390x
-          # Linux RISC-V 64 (GNU libc)
-          - id: linux-riscv64-gnu
-            target: riscv64gc-unknown-linux-gnu
-            os: ubuntu-latest
-            platform: linux/riscv64
-          # macOS ARM64
           - id: macos-arm64
             target: aarch64-apple-darwin
             os: macos-14
-          # macOS x64
           - id: macos-x64
             target: x86_64-apple-darwin
             os: macos-13
-          # Windows x64
           - id: windows-x64
             target: x86_64-pc-windows-msvc
             os: windows-latest
-          # FreeBSD x64 (cross-compiled on Linux)
           - id: freebsd-x64
             target: x86_64-unknown-freebsd
             os: ubuntu-latest
             platform: linux/amd64
-    with:
-      id: ${{ matrix.id }}
-      target: ${{ matrix.target }}
-      os: ${{ matrix.os }}
-      platform: ${{ matrix.platform }}
-      release: true
-    permissions:
-      contents: write # Required by the release upload action in build.yml
+          - id: linux-powerpc64le-gnu
+            target: powerpc64le-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux/ppc64le
+          - id: linux-s390x-gnu
+            target: s390x-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux/s390x
+          - id: linux-riscv64-gnu
+            target: riscv64gc-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux/riscv64
 
-  # Job 3: Publish the release after all builds have succeeded.
-  publish-release:
-    name: Publish Release
-    needs: [build]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Publish GitHub Release
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build Binaries
+        uses: ./.github/workflows/build.yml
+        with:
+          id: ${{ matrix.id }}
+          target: ${{ matrix.target }}
+          os: ${{ matrix.os }}
+          platform: ${{ matrix.platform }}
+          release: false
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pg-tools-v${{ github.ref_name }}-${{ matrix.id }}
+          path: artifacts
+
+      - name: Create npm Packages
+        run: pnpm run create-packages
+
+      - name: Prepare and Publish Package
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ github.ref_name }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          gh release edit "$TAG_NAME" --draft=false
+          ARTIFACT_DIR_NAME=$(ls artifacts)
+          ARTIFACT_DIR="artifacts/$ARTIFACT_DIR_NAME"
+          
+          cp -r $ARTIFACT_DIR/bin/* npm/${{ matrix.id }}/
+          
+          cd npm/${{ matrix.id }}
+          pnpm publish --no-git-checks
+
+  publish-main:
+    name: Publish Main Package
+    needs: [build_and_publish]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build Main Package
+        run: pnpm run build
+
+      - name: Update Package Versions for Publishing
+        id: set_version
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkg = require('./package.json');
+            const finalVersion = \`\${pkg.version}-pg-\${pkg.pgVersion}\`;
+            pkg.version = finalVersion;
+            
+            for (const key in pkg.optionalDependencies) {
+              if (pkg.optionalDependencies[key] === 'workspace:*') {
+                pkg.optionalDependencies[key] = finalVersion;
+              }
+            }
+            
+            fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
+            console.log(`::set-output name=version::\${finalVersion}`);
+          "
+      
+      - name: Publish Main Package to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish --no-git-checks

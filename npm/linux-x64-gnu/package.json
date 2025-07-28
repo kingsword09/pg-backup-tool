@@ -1,0 +1,28 @@
+{
+  "name": "@kingsword/pg-backup-tool-linux-x64-gnu",
+  "version": "1.0.0-pg-17.5.0",
+  "description": "The linux-x64-gnu binary for pg-backup-tool.",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kingsword09/pg-backup-tool.git"
+  },
+  "author": {
+    "name": "Kingsword",
+    "email": "kingsword09@gmail.com",
+    "url": "https://github.com/kingsword09"
+  },
+  "license": "Apache-2.0",
+  "libc": [
+    "gnu"
+  ]
+}

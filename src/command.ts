@@ -1,5 +1,5 @@
-import { PgDumpOptions } from './dump';
-import { PgRestoreOptions } from './restore';
+import { PgDumpOptions } from './dump.js';
+import { PgRestoreOptions } from './restore.js';
 
 type Options = PgDumpOptions | PgRestoreOptions;
 
