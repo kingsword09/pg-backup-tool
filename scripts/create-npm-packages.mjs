@@ -3,7 +3,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const mainPackageJson = JSON.parse(await fs.readFile(path.join(__dirname, '../package.json'), 'utf-8'));
+const mainPackageJson = JSON.parse(
+  await fs.readFile(path.join(__dirname, '../package.json'), 'utf-8'),
+);
 
 const platforms = {
   'darwin-x64': 'macos-x64',
@@ -63,7 +65,9 @@ async function main() {
 main()
   .then(() => {
     console.log('\n✅ All platform packages created in the `npm/` directory.');
-    console.log('➡️  Next, run `pnpm install` to link them into your workspace.');
+    console.log(
+      '➡️  Next, run `pnpm install` to link them into your workspace.',
+    );
   })
   .catch((err) => {
     console.error(err);

@@ -12,12 +12,12 @@ on:
   workflow_dispatch:
     inputs:
       run_platform_builds:
-        description: "Run platform builds (PostgreSQL binaries)"
+        description: 'Run platform builds (PostgreSQL binaries)'
         required: false
         default: false
         type: boolean
       run_extended_tests:
-        description: "Run extended platform tests (includes more architectures)"
+        description: 'Run extended platform tests (includes more architectures)'
         required: false
         default: false
         type: boolean
@@ -47,23 +47,20 @@ jobs:
         with:
           version: latest
 
-      # - name: Install Dependencies
-      #   run: npm ci
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
 
-      # - name: TypeScript Type Check
-      #   run: npm run build
+      - name: TypeScript Type Check & Build
+        run: pnpm run build
 
-      # - name: Run Linter
-      #   run: npm run lint
-      #   continue-on-error: true
+      - name: Run Linter
+        run: pnpm run lint
 
-      # - name: Run Formatter Check
-      #   run: npm run format:check
-      #   continue-on-error: true
+      - name: Run Formatter Check
+        run: pnpm exec prettier --check .
 
-      # - name: Run Tests
-      #   run: npm test
-      #   continue-on-error: true
+      - name: Run Local Tests
+        run: pnpm run test:local
 
   # Platform builds (only when manually requested)
   standard-builds:

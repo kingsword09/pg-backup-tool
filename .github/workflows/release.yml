@@ -4,7 +4,7 @@ name: Release
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
   build_and_publish:
@@ -98,9 +98,9 @@ jobs:
         run: |
           ARTIFACT_DIR_NAME=$(ls artifacts)
           ARTIFACT_DIR="artifacts/$ARTIFACT_DIR_NAME"
-          
+
           cp -r $ARTIFACT_DIR/bin/* npm/${{ matrix.id }}/
-          
+
           cd npm/${{ matrix.id }}
           pnpm publish --no-git-checks
 
@@ -118,7 +118,7 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
-      
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
         with:
@@ -148,7 +148,7 @@ jobs:
             fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
             console.log(`::set-output name=version::\${finalVersion}`);
           "
-      
+
       - name: Publish Main Package to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -42,12 +42,12 @@
 
 表 1: pg_dump 输出格式对比
 
-| 格式 (Format) | -F 标志 | 默认压缩 | 恢复工具 | 支持并行转储 (-j) | 支持并行恢复 | 支持选择性恢复 |
-|---------------|---------|----------|----------|-------------------|----------------|------------------|
-| plain         | p       | 否       | psql     | 否                | 否             | 否               |
-| custom        | c       | 是       | pg_restore | 否              | 是             | 是               |
-| directory     | d       | 是       | pg_restore | 是              | 是             | 是               |
-| tar           | t       | 否       | pg_restore | 否              | 否             | 是               |
+| 格式 (Format) | -F 标志 | 默认压缩 | 恢复工具   | 支持并行转储 (-j) | 支持并行恢复 | 支持选择性恢复 |
+| ------------- | ------- | -------- | ---------- | ----------------- | ------------ | -------------- |
+| plain         | p       | 否       | psql       | 否                | 否           | 否             |
+| custom        | c       | 是       | pg_restore | 否                | 是           | 是             |
+| directory     | d       | 是       | pg_restore | 是                | 是           | 是             |
+| tar           | t       | 否       | pg_restore | 否                | 否           | 是             |
 
 基于上表的分析，对于需要程序化封装的场景，强烈推荐使用 `custom` (`-Fc`) 或 `directory` (`-Fd`) 格式作为默认选项。这两种格式提供了最大的灵活性，支持并行恢复和选择性恢复，并且默认进行压缩，非常适合自动化工作流和大型数据库的管理。
 
@@ -122,7 +122,7 @@ export interface PgDumpOptions {
    * 't' (tar): tar 格式的归档。
    * @default 'p'
    */
-  format?: "p" | "c" | "d" | "t";
+  format?: 'p' | 'c' | 'd' | 't';
 
   /**
    * 通过同时转储多个表来并行运行转储。
@@ -187,7 +187,7 @@ export interface PgDumpOptions {
    * 转储指定的部分。可以是 'pre-data', 'data', 或 'post-data'。
    * 可以多次指定以选择多个部分。
    */
-  section?: Array<"pre-data" | "data" | "post-data">;
+  section?: Array<'pre-data' | 'data' | 'post-data'>;
 
   /**
    * 防止转储表访问方法。
@@ -559,7 +559,7 @@ export interface PgRestoreOptions {
   /**
    * 仅恢复指定的部分。可以是 'pre-data', 'data', 或 'post-data'。
    */
-  section?: Array<"pre-data" | "data" | "post-data">;
+  section?: Array<'pre-data' | 'data' | 'post-data'>;
 
   /**
    * 仅恢复指定模式中的对象。可以多次指定。
@@ -783,7 +783,7 @@ class PostgresBackupClient {
   }
 
   public dump(
-    options: Omit<PgDumpOptions, keyof ConnectionOptions>
+    options: Omit<PgDumpOptions, keyof ConnectionOptions>,
   ): Promise<any> {
     const fullOptions = { ...this.connectionOptions, ...options };
     // 调用 executePgDump(fullOptions)
@@ -791,7 +791,7 @@ class PostgresBackupClient {
   }
 
   public restore(
-    options: Omit<PgRestoreOptions, keyof ConnectionOptions>
+    options: Omit<PgRestoreOptions, keyof ConnectionOptions>,
   ): Promise<any> {
     const fullOptions = { ...this.connectionOptions, ...options };
     // 调用 executePgRestore(fullOptions)
@@ -827,13 +827,13 @@ interface ProcessResult {
 
 ```ts
 // 概念性示例：从 pg_dump 流式传输到 gzip 文件
-import { spawn } from "child_process";
-import { createWriteStream } from "fs";
-import { createGzip } from "zlib";
+import { spawn } from 'child_process';
+import { createWriteStream } from 'fs';
+import { createGzip } from 'zlib';
 
-const dumpProcess = spawn("pg_dump", ["-Fc", "mydb"]);
+const dumpProcess = spawn('pg_dump', ['-Fc', 'mydb']);
 const gzip = createGzip();
-const output = createWriteStream("mydb.dump.gz");
+const output = createWriteStream('mydb.dump.gz');
 
 dumpProcess.stdout.pipe(gzip).pipe(output);
 ```

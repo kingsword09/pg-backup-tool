@@ -99,7 +99,7 @@ jobs:
           INPUT_PLATFORM: ${{ inputs.platform }}
         run: |
           docker run --privileged --rm tonistiigi/binfmt --install all
-          
+
           # Choose appropriate Dockerfile based on target
           if [[ "$INPUT_ID" == *freebsd* ]]; then
             echo "DOCKERFILE=dockerfiles/Dockerfile.freebsd" >> $GITHUB_ENV
@@ -110,7 +110,7 @@ jobs:
           else
             echo "DOCKERFILE=dockerfiles/Dockerfile.linux-gnu" >> $GITHUB_ENV
           fi
-          
+
           echo "Building for platform: $INPUT_PLATFORM"
           echo "Using Dockerfile: $DOCKERFILE"
 
@@ -264,7 +264,7 @@ jobs:
           cd "${INSTALL_DIR}"
           cp "${ROOT_DIR}/scripts/test.sh" .
           chmod +x test.sh
-          
+
           # Check if we're doing cross-compilation (different architecture)
           if [[ "$RUNNER_OS" == "Linux" && "$INPUT_PLATFORM" != "" ]]; then
             # Extract target architecture from platform
