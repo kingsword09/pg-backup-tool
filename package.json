@@ -2,8 +2,22 @@
   "name": "pg-backup-tool",
   "version": "1.0.0",
   "description": "Cross-platform PostgreSQL `pg_dump` and `pg_restore` binaries built automatically for multiple architectures.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
   "files": [
     "dist",
     "bin",
@@ -11,9 +25,12 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsdown",
     "dev": "tsc --noEmit --watch",
     "clean": "rm -rf dist",
+    "lint": "oxlint .",
+    "format": "prettier --write .",
+    "prepare": "husky",
     "prepublishOnly": "pnpm run clean && pnpm run build"
   },
   "keywords": [
@@ -69,9 +86,20 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.9",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2",
+    "oxlint": "^1.8.0",
+    "prettier": "^3.6.2",
+    "tsdown": "^0.13.0",
     "typescript": "^5.8.3"
   },
   "dependencies": {
     "commander": "^11.0.0"
+  },
+  "lint-staged": {
+    "*.{js,ts,json,md}": [
+      "prettier --write",
+      "oxlint"
+    ]
   }
 }
