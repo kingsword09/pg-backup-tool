@@ -59,7 +59,7 @@ if (Test-Path $PgDumpPath) {
     Write-Host "No pre-built Windows binaries found" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "For Windows development, you have these options:"
-    Write-Host "1. Ensure the @kingsword/pg-backup-tool-windows-x64 package is installed"
+    Write-Host "1. Ensure the @pg-ts/pg-backup-tool-windows-x64 package is installed"
     Write-Host "2. Download PostgreSQL from: https://www.postgresql.org/download/windows/"
     Write-Host "3. Extract pg_dump.exe and pg_restore.exe to: $BinDir"
     Write-Host "4. Copy required DLLs to: $LibDir"

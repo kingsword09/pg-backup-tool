@@ -1,5 +1,5 @@
 {
-  "name": "@kingsword/pg-backup-tool-linux-powerpc64le-gnu",
+  "name": "@pg-ts/pg-backup-tool-linux-powerpc64le-gnu",
   "version": "1.0.0-pg-17.5.0",
   "description": "The linux-powerpc64le-gnu binary for pg-backup-tool.",
   "os": [

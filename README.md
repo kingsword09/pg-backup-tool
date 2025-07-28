@@ -241,7 +241,7 @@ Each build includes automated tests:
 If you see an error like:
 
 ```
-Could not find optional dependency @kingsword/pg-backup-tool-macos-arm64
+Could not find optional dependency @pg-ts/pg-backup-tool-macos-arm64
 ```
 
 **Solutions:**
@@ -250,7 +250,7 @@ Could not find optional dependency @kingsword/pg-backup-tool-macos-arm64
 2. **Check platform support**: Ensure your platform is in the supported list above
 3. **Manual installation**: Install the specific platform package:
    ```bash
-   pnpm add @kingsword/pg-backup-tool-macos-arm64
+   pnpm add @pg-ts/pg-backup-tool-macos-arm64
    ```
 
 #### Binary Not Found

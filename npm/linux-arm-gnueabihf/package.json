@@ -1,5 +1,5 @@
 {
-  "name": "@kingsword/pg-backup-tool-linux-arm-gnueabihf",
+  "name": "@pg-ts/pg-backup-tool-linux-arm-gnueabihf",
   "version": "1.0.0-pg-17.5.0",
   "description": "The linux-arm-gnueabihf binary for pg-backup-tool.",
   "os": [

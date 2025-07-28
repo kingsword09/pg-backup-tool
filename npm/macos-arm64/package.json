@@ -1,5 +1,5 @@
 {
-  "name": "@kingsword/pg-backup-tool-macos-arm64",
+  "name": "@pg-ts/pg-backup-tool-macos-arm64",
   "version": "1.0.0-pg-17.5.0",
   "description": "The macos-arm64 binary for pg-backup-tool.",
   "os": [

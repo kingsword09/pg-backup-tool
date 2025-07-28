@@ -102,18 +102,18 @@
     "commander": "^11.0.0"
   },
   "optionalDependencies": {
-    "@kingsword/pg-backup-tool-freebsd-x64": "workspace:*",
-    "@kingsword/pg-backup-tool-linux-aarch64-gnu": "workspace:*",
-    "@kingsword/pg-backup-tool-linux-aarch64-musl": "workspace:*",
-    "@kingsword/pg-backup-tool-linux-arm-gnueabihf": "workspace:*",
-    "@kingsword/pg-backup-tool-linux-powerpc64le-gnu": "workspace:*",
-    "@kingsword/pg-backup-tool-linux-riscv64-gnu": "workspace:*",
-    "@kingsword/pg-backup-tool-linux-s390x-gnu": "workspace:*",
-    "@kingsword/pg-backup-tool-linux-x64-gnu": "workspace:*",
-    "@kingsword/pg-backup-tool-linux-x64-musl": "workspace:*",
-    "@kingsword/pg-backup-tool-macos-arm64": "workspace:*",
-    "@kingsword/pg-backup-tool-macos-x64": "workspace:*",
-    "@kingsword/pg-backup-tool-windows-x64": "workspace:*"
+    "@pg-ts/pg-backup-tool-freebsd-x64": "workspace:*",
+    "@pg-ts/pg-backup-tool-linux-aarch64-gnu": "workspace:*",
+    "@pg-ts/pg-backup-tool-linux-aarch64-musl": "workspace:*",
+    "@pg-ts/pg-backup-tool-linux-arm-gnueabihf": "workspace:*",
+    "@pg-ts/pg-backup-tool-linux-powerpc64le-gnu": "workspace:*",
+    "@pg-ts/pg-backup-tool-linux-riscv64-gnu": "workspace:*",
+    "@pg-ts/pg-backup-tool-linux-s390x-gnu": "workspace:*",
+    "@pg-ts/pg-backup-tool-linux-x64-gnu": "workspace:*",
+    "@pg-ts/pg-backup-tool-linux-x64-musl": "workspace:*",
+    "@pg-ts/pg-backup-tool-macos-arm64": "workspace:*",
+    "@pg-ts/pg-backup-tool-macos-x64": "workspace:*",
+    "@pg-ts/pg-backup-tool-windows-x64": "workspace:*"
   },
   "lint-staged": {
     "*.{js,ts,json,md}": [

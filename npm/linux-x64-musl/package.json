@@ -1,5 +1,5 @@
 {
-  "name": "@kingsword/pg-backup-tool-linux-x64-musl",
+  "name": "@pg-ts/pg-backup-tool-linux-x64-musl",
   "version": "1.0.0-pg-17.5.0",
   "description": "The linux-x64-musl binary for pg-backup-tool.",
   "os": [

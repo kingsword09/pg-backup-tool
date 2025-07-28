@@ -55,7 +55,7 @@ if exist "%NPM_BIN_DIR%\pg_dump.exe" (
     echo Windows binaries copied successfully
 ) else (
     echo No pre-built Windows binaries found
-    echo Please ensure the @kingsword/pg-backup-tool-windows-x64 package is installed
+    echo Please ensure the @pg-ts/pg-backup-tool-windows-x64 package is installed
     echo Or manually place pg_dump.exe and pg_restore.exe in: %ARTIFACT_DIR%\bin\
 )
 
